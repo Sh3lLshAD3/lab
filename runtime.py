@@ -37,6 +37,9 @@ class Runtime:
                     if found:return [found]
                 except (OSError,subprocess.SubprocessError):pass
             return None
+        if tool=='dnsrecon' and (self.base/'dnsrecon/pyproject.toml').is_file():
+            wrapper=self.base/'bin'/('dnsrecon.cmd' if os.name=='nt' else 'dnsrecon')
+            if wrapper.is_file():return [str(wrapper)]
         if tool in ('photon','theHarvester'):
             envdir=self.base/'venvs'/tool
             py=envdir/('Scripts/python.exe' if os.name=='nt' else 'bin/python')

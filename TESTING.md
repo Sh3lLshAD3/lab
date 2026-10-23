@@ -47,3 +47,6 @@ Upstream tools are installed from current modules/branches. CLI flags and schema
 ## 3.1.0 live status validation
 
 47 unit tests pass, including a real local fixture subprocess whose log is readable while it is still running, plus retry status aggregation. DOM tests cover active-tool output refresh even when job revision is unchanged. No external scan or real tool installation was performed. Output buffering in upstream tools may delay individual log lines; the UI polls once per second.
+
+## 3.1.1 DNSRecon
+48 unit tests pass. A local executable fixture verifies the published DNSRecon wrapper invokes uv with the dedicated environment, project path and original arguments. Actual upstream download and uv dependency synchronization were not executed.

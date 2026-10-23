@@ -22,7 +22,7 @@ OPTIONAL=tuple(name for name in CHECKS if name not in CORE)
 SCANNABLE=CORE+('katana','dnsrecon','nmap','dnsx','naabu','photon','theHarvester')
 INSTALLABLE=SCANNABLE
 
-SOURCES={'photon':'https://github.com/s0md3v/Photon.git','theHarvester':'https://github.com/laramies/theHarvester.git'}
+SOURCES={'dnsrecon':'https://github.com/darkoperator/dnsrecon.git','photon':'https://github.com/s0md3v/Photon.git','theHarvester':'https://github.com/laramies/theHarvester.git'}
 PHASES={name:phase for phase,names in {
  'DNS and passive discovery':('subfinder','waybackurls','dnsx','dnsrecon','theHarvester'),
  'Ports and services':('naabu','nmap'),

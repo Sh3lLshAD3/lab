@@ -1,4 +1,4 @@
-"""Checkout only the configured Photon/theHarvester upstream repositories."""
+"""Checkout only the configured DNSRecon/Photon/theHarvester upstream repositories."""
 from pathlib import Path
 import subprocess
 from urllib.parse import urlsplit

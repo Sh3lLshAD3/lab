@@ -6,7 +6,10 @@ from catalog import GO_MODULES
 def publish_command(name,base,env,bin_directory=None):
     if os.name=='nt':
         bindir=base/'bin'
-        if name=='photon':command='"'+str(base/'venvs/photon/Scripts/python.exe')+'" "'+str(base/'photon/photon.py')+'"'
+        if name=='dnsrecon':
+            uv=base/'manager-venv/Scripts/uv.exe'
+            command='set "UV_PROJECT_ENVIRONMENT='+str(base/'dnsrecon/.venv')+'"\nset "UV_PYTHON_INSTALL_DIR='+str(base/'python-runtimes')+'"\n"'+str(uv)+'" run --project "'+str(base/'dnsrecon')+'" --no-sync dnsrecon'
+        elif name=='photon':command='"'+str(base/'venvs/photon/Scripts/python.exe')+'" "'+str(base/'photon/photon.py')+'"'
         elif name=='theHarvester':command='"'+str(base/'venvs/theHarvester/Scripts/theHarvester.exe')+'"'
         elif name in ('arjun','dnsrecon'):
             command='"'+str(base/'venv/Scripts'/(name+'.exe'))+'"'
@@ -28,7 +31,12 @@ def publish_command(name,base,env,bin_directory=None):
         return
     link=Path(bin_directory or '/usr/local/bin')/('pd-httpx' if name=='httpx' else name)
     if name in GO_MODULES:target=base/'bin'/name
-    elif name in ('arjun','dnsrecon'):target=base/'venv/bin'/name
+    elif name=='dnsrecon':
+        import shlex
+        wrapper=base/'bin/dnsrecon'
+        wrapper.write_text('#!/bin/sh\nexport UV_PROJECT_ENVIRONMENT='+shlex.quote(str(base/'dnsrecon/.venv'))+'\nexport UV_PYTHON_INSTALL_DIR='+shlex.quote(str(base/'python-runtimes'))+'\nexec '+shlex.quote(str(base/'manager-venv/bin/uv'))+' run --project '+shlex.quote(str(base/'dnsrecon'))+' --no-sync dnsrecon "$@"\n')
+        wrapper.chmod(0o755);target=wrapper
+    elif name=='arjun':target=base/'venv/bin'/name
     elif name=='photon':target=base/'photon/photon.py'
     elif name=='theHarvester':target=base/'venvs/theHarvester/bin/theHarvester'
     elif name=='sqlmap':target=base/'sqlmap/sqlmap.py'

@@ -1,3 +1,7 @@
+## 3.1.1 — DNSRecon source installation
+
+DNSRecon now clones the official darkoperator repository and uses uv sync with its own environment at /opt/pentest-lab-tools/dnsrecon/.venv. The system command runs uv run --no-sync dnsrecon, avoiding dependency downloads during scans. Existing verified installations are preserved unless update is selected. Select DNSRecon and enable update to migrate an older installation. uv is bootstrapped through an isolated manager environment rather than piping a downloaded shell script.
+
 ## 3.1.0 — Live scan monitor
 
 - One-second status refresh with per-tool Running, Success, Failed, Timeout, Skipped and pending states.

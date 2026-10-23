@@ -48,12 +48,6 @@ Python scanner dependencies আলাদা environment-এ থাকবে, ক
 
 Python 3.11+, venv এবং apt-based distribution প্রয়োজন।
 
-## Installation
-
-```bash
-git clone --depth 1 https://github.com/Sh3lLshAD3/lab.git lab-dev
-```
-
 ```bash
 bash start-linux.sh
 ```

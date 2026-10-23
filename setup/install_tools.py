@@ -59,14 +59,14 @@ def main():
                 if name in ('katana','naabu'):env['CGO_ENABLED']='1'
                 else:env['CGO_ENABLED']='0'
                 call([go,'install',GO_MODULES[name]+'@latest'])
-            elif name in ('arjun','dnsrecon','sqlmap'):
+            elif name in ('arjun','sqlmap'):
                 python=base/'venv'/('Scripts/python.exe' if os.name=='nt' else 'bin/python')
                 if not python.is_file():call([sys.executable,'-m','venv',base/'venv'])
                 if name!='sqlmap':call([python,'-m','pip','install','--no-cache-dir',*(['--upgrade'] if update else []),name])
             if name in SOURCES:
                 print('[SOURCE] '+name+': '+SOURCES[name],flush=True)
                 dest=checkout(name,base/name,call,update=update)
-                venv=base/'venvs'/name
+                venv=dest/'.venv' if name=='dnsrecon' else base/'venvs'/name
                 tool_python=venv/('Scripts/python.exe' if os.name=='nt' else 'bin/python')
                 if name=='photon':
                     if not tool_python.is_file():call([sys.executable,'-m','venv',venv])
@@ -82,6 +82,7 @@ def main():
                     env['UV_PYTHON_INSTALL_DIR']=str(base/'python-runtimes')
                     env['UV_PROJECT_ENVIRONMENT']=str(venv)
                     call([uv,'sync','--project',dest,'--no-dev'])
+                    if name=='dnsrecon':call([uv,'run','--project',dest,'--no-sync','dnsrecon','-h'])
             if name in ('sqlmap','nikto'):
 
                 url='https://github.com/'+('sqlmapproject/sqlmap.git' if name=='sqlmap' else 'sullo/nikto.git')
