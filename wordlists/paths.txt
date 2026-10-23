@@ -1,0 +1,7 @@
+robots.txt
+sitemap.xml
+admin
+login
+api
+health
+status
