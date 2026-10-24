@@ -11,11 +11,10 @@ def javascript_urls(scope,urls,limit):
     return [u for u in scope.filter(urls) if urlsplit(u).path.lower().endswith(('.js','.mjs','.cjs'))][:limit]
 
 def download(url,cancel):
-    chunks=[];size=0;deadline=time.monotonic()+40
+    chunks=[];size=0
     with build_opener(NoRedirect).open(Request(url,headers={'User-Agent':'PentestLab/3.2','Accept-Encoding':'identity'}),timeout=10) as response:
         while True:
             if cancel.is_set():raise InterruptedError('Stopped by user')
-            if time.monotonic()>deadline:raise TimeoutError('JavaScript download exceeded 40 seconds')
             chunk=response.read(65536)
             if not chunk:break
             size+=len(chunk)
@@ -42,7 +41,7 @@ def scan(worker,urls,read_lines,now):
             stage.update(status='done',detail='Downloaded '+url,finished=now());worker.checkpoint()
         except Exception as exc:
             stage.update(status='cancelled' if worker.cancel.is_set() else 'failed',detail=url+': '+str(exc),finished=now());worker.checkpoint();continue
-        log=worker.run('secretfinder',['-i',worker.rp(local),'-o','cli'],timeout=180)
+        log=worker.run('secretfinder',['-i',worker.rp(local),'-o','cli'],timeout=None)
         if not log:continue
         for line in read_lines(log):
             if '\t->\t' not in line:continue

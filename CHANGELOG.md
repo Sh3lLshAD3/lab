@@ -1,3 +1,7 @@
+## 3.5.1 — No total execution deadline for scan tools
+
+All 17 scan tools now run without lab-imposed wall-clock limits. Removed ffuf and Nikto internal maxtime flags and the JavaScript download total-time budget. Per-request socket timeouts, verification/setup limits, input limits and Stop/Skip remain. Because all scanner invocations use timeout=None, the former conditional 50 MB log cutoff no longer applies to them. Long scans can retain large logs until deleted by the user. Existing processes are not modified.
+
 ## 3.5.0 — Live terminal console and Nuclei progress
 
 - Displays the actual process argument vector and merged stdout/stderr with incremental byte paging. Console stays scrollable; upward wheel/scroll pauses auto-scroll. Load earlier output and Jump to live controls retain access to old and current log sections. Console text buffer is capped at 4 million characters.

@@ -31,9 +31,9 @@ def passive(worker,host,read_records,read_lines):
         worker.job['passive_note']='Public archive and OSINT queries omitted for local or IP target'
         return set(),set()
     urls=set();hosts=set()
-    log=worker.run('waybackurls',[],host+'\n',timeout=120)
+    log=worker.run('waybackurls',[],host+'\n',timeout=None)
     if log:urls.update(worker.scope.filter(read_lines(log)))
-    log=worker.run('subfinder',['-d',host,'-silent'],timeout=120)
+    log=worker.run('subfinder',['-d',host,'-silent'],timeout=None)
     if log:
         for line in read_lines(log):
             name=normalized_host(line.strip())
@@ -41,7 +41,7 @@ def passive(worker,host,read_records,read_lines):
     if 'theHarvester' in worker.enabled:
         output=worker.directory/'harvester'
         sources=','.join(worker.job.get('options',{}).get('harvester_sources',['crtsh','otx']))
-        log=worker.run('theHarvester',['-d',host,'-b',sources,'-l','100','-f',worker.rp(output)],timeout=240)
+        log=worker.run('theHarvester',['-d',host,'-b',sources,'-l','100','-f',worker.rp(output)],timeout=None)
         evidence=[]
         for path in (output.with_suffix('.json'),output.with_suffix('.jsonl')):
             for obj in read_records(path):
@@ -57,7 +57,7 @@ def passive(worker,host,read_records,read_lines):
         if evidence:worker.finding('theHarvester','Passive OSINT observations',worker.scope.seed,'\n'.join(evidence)[:6000])
     if 'dnsrecon' in worker.enabled:
         output=worker.directory/'dnsrecon.json'
-        log=worker.run('dnsrecon',['-d',host,'-j',worker.rp(output)],timeout=120)
+        log=worker.run('dnsrecon',['-d',host,'-j',worker.rp(output)],timeout=None)
         values=read_records(output)
         if values:worker.finding('dnsrecon','DNS profile',worker.scope.seed,json.dumps(values,ensure_ascii=True)[:6000])
         elif log:
@@ -71,7 +71,7 @@ def dns_and_ports(worker,urls,read_records,read_lines):
     inputs=worker.file('recon-hosts.txt',hosts)
     if 'dnsx' in worker.enabled:
         output=worker.directory/'dnsx.jsonl'
-        worker.run('dnsx',['-l',worker.rp(inputs),'-a','-aaaa','-cname','-mx','-ns','-json','-silent','-rl','3','-o',worker.rp(output)],timeout=120)
+        worker.run('dnsx',['-l',worker.rp(inputs),'-a','-aaaa','-cname','-mx','-ns','-json','-silent','-rl','3','-o',worker.rp(output)],timeout=None)
         for record in read_records(output):
             if not isinstance(record,dict):continue
             host=normalized_host(record.get('host',''))
@@ -87,7 +87,7 @@ def dns_and_ports(worker,urls,read_records,read_lines):
     budget=worker.job.get('options',{}).get('top_ports',1000)
     if 'naabu' in worker.enabled:
         output=worker.directory/'naabu.jsonl'
-        worker.run('naabu',['-list',worker.rp(inputs),'-scan-type','c','-top-ports',str(budget),'-rate','10','-c','2','-retries','1','-json','-silent','-o',worker.rp(output)],timeout=300)
+        worker.run('naabu',['-list',worker.rp(inputs),'-scan-type','c','-top-ports',str(budget),'-rate','10','-c','2','-retries','1','-json','-silent','-o',worker.rp(output)],timeout=None)
         for record in read_records(output):
             if not isinstance(record,dict):continue
             host=normalized_host(record.get('host') or record.get('ip',''))
@@ -103,7 +103,7 @@ def dns_and_ports(worker,urls,read_records,read_lines):
             output=worker.directory/f'nmap-{index}.xml'
             selected=sorted(ports[host])
             flags=['-p',','.join(map(str,selected))] if selected else ['--top-ports',str(budget)]
-            worker.run('nmap',['-sT','-sV',*flags,'--max-rate','10','-oX',worker.rp(output),host],timeout=300)
+            worker.run('nmap',['-sT','-sV',*flags,'--max-rate','10','-oX',worker.rp(output),host],timeout=None)
             if not output.is_file():continue
             try:
                 for port in ET.parse(output).findall('.//port'):
@@ -131,11 +131,11 @@ def crawl(worker,live,roots,read_lines):
         if worker.cancel.is_set():break
         if 'katana' in worker.enabled:
             output=worker.directory/f'katana-{index}.txt'
-            worker.run('katana',['-u',root,'-d',depth,'-fs','fqdn','-dr','-rl','3','-c','1','-duc','-silent','-o',worker.rp(output)],timeout=180)
+            worker.run('katana',['-u',root,'-d',depth,'-fs','fqdn','-dr','-rl','3','-c','1','-duc','-silent','-o',worker.rp(output)],timeout=None)
             extra.extend(read_lines(output))
         if 'photon' in worker.enabled:
             output=worker.directory/f'photon-{index}'
-            worker.run('photon',['-u',root,'-l',depth,'-t','1','-d','0.5','--timeout','10','--only-urls','-o',worker.rp(output)],timeout=180)
+            worker.run('photon',['-u',root,'-l',depth,'-t','1','-d','0.5','--timeout','10','--only-urls','-o',worker.rp(output)],timeout=None)
             if output.is_dir():
                 for file in output.rglob('*.txt'):
                     if file.stat().st_size<5_000_000:extra.extend(read_lines(file))

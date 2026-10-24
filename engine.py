@@ -84,7 +84,7 @@ class Engine:
         self.job['findings'].append(item)
         if time.monotonic()-self.last_finding_save>.25:
             self.checkpoint();self.last_finding_save=time.monotonic()
-    def run(self,tool,args,stdin=None,timeout=600):
+    def run(self,tool,args,stdin=None,timeout=None):
         if self.cancel.is_set() or tool not in self.enabled or tool in self.skipped_tools: return None
         self.counter+=1
         stage={'name':tool,'status':'running','detail':'', 'started':now(),'execution_kind':'tool','process_started':False}
@@ -225,7 +225,7 @@ class Engine:
         discovered=[]
         for i,root in enumerate(roots):
             output=self.directory/f'ffuf-{i}.json'
-            self.run('ffuf',['-w',self.rp(ROOT/'wordlists/paths.txt'),'-u',root+'FUZZ','-rate','3','-t','1','-maxtime','120','-ac','-noninteractive','-of','json','-o',self.rp(output)],timeout=150)
+            self.run('ffuf',['-w',self.rp(ROOT/'wordlists/paths.txt'),'-u',root+'FUZZ','-rate','3','-t','1','-ac','-noninteractive','-of','json','-o',self.rp(output)],timeout=None)
             for obj in records(output):
                 for r in obj.get('results',[]) if isinstance(obj,dict) else []:
                     url=r.get('url','')
@@ -254,7 +254,7 @@ class Engine:
             if url not in scanned: dalfox(url)
         for i,url in enumerate(expanded):
             output=self.directory/f'sqlmap-{i}'
-            log=self.run('sqlmap',['-u',url,'-v','2','--parse-errors','-t',self.rp(self.directory/f'sqlmap-{i}-traffic.txt'),'-p',','.join(dict.fromkeys(k for k,v in parse_qsl(urlsplit(url).query,keep_blank_values=True))),'--batch','--level=1','--risk=1','--threads=1','--delay=0.4','--timeout=10','--retries=0','--ignore-redirects','--disable-coloring','--output-dir='+self.rp(output)],timeout=600)
+            log=self.run('sqlmap',['-u',url,'-v','2','--parse-errors','-t',self.rp(self.directory/f'sqlmap-{i}-traffic.txt'),'-p',','.join(dict.fromkeys(k for k,v in parse_qsl(urlsplit(url).query,keep_blank_values=True))),'--batch','--level=1','--risk=1','--threads=1','--delay=0.4','--timeout=10','--retries=0','--ignore-redirects','--disable-coloring','--output-dir='+self.rp(output)],timeout=None)
             text='\n'.join(lines(log)) if log else ''
             # Require structured injection summary, not generic warning/error text.
             match=re.search(r'Parameter: .+?\n(?:.*\n){0,2}?\s*Type: .+',text)
@@ -273,7 +273,7 @@ class Engine:
         for i,root in enumerate(roots):
             if self.cancel.is_set(): return
             output=self.directory/f'nikto-{i}.json'
-            self.run('nikto',['-h',root,'-Format','json','-output',self.rp(output),'-maxtime','300s','-Pause','0.4','-nointeractive'],timeout=330)
+            self.run('nikto',['-h',root,'-Format','json','-output',self.rp(output),'-Pause','0.4','-nointeractive'],timeout=None)
             for obj in records(output):
                 if not isinstance(obj,dict): continue
                 for v in obj.get('vulnerabilities',[]):

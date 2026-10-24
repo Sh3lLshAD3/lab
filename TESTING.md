@@ -68,3 +68,6 @@ Upstream tools are installed from current modules/branches. CLI flags and schema
 
 ## 3.5.0 console and progress
 66 unit tests pass, including real fixture subprocess cancellation by Skip without whole-job cancellation, JSON stats parsing and WAF distinction, byte log paging and stale skip token rejection. Pipeline fixture checks Nuclei statistics/speed and SQLmap diagnostic flags. DOM harness verifies command display, upward-wheel auto-scroll pause, skip availability and incremental polling. Actual upstream Nuclei/SQLmap scans, terminal performance comparison, Windows and WSL process behavior were not exercised.
+
+## 3.5.1 scan deadlines
+68 unit tests pass, including AST verification that every pipeline tool invocation has no overall deadline and ffuf/Nikto have no maxtime flag. Existing real local subprocess completion, Stop/Skip and live progress tests continue to pass. UI DOM checks pass. No live external scan was performed.
