@@ -1,3 +1,7 @@
+## 3.4.1 — Delete saved scans
+
+Completed, failed, stopped and interrupted scan jobs can be permanently deleted from their result actions after an explicit UI confirmation. Removes only the selected job folder and history entry, reports, logs and downloaded evidence. Running/queued jobs and active report workers are protected. Authenticated endpoint rejects unsafe or symlink job roots. Logical file bytes removed are shown; OS free space may differ. Installed tools are unaffected.
+
 ## 3.4.0 — Test execution register
 
 Word and HTML list all 17 test methods with recorded command attempts, completion/failure counts, candidate counts and status. New stages explicitly distinguish actual tool commands and process launches from downloads and parser events. Counts are command attempts, not payload/request/template totals. Legacy records without metadata are excluded with an explicit limitation. Word adds a finding register with stable sequential F identifiers and a wide repeated-header test table. Referenced PentestReports collection and Groundtruth summary for report organization; no third-party findings are imported.

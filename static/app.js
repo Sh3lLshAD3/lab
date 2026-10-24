@@ -23,12 +23,12 @@ async function download(job,format='docx'){try{const r=await fetch('/api/report/
 function render(){
  const scans=jobs.filter(j=>j.kind==='scan');if(!selected&&scans.length)selected=scans[0].id;
  $('history').replaceChildren();for(const j of scans){let host;try{host=new URL(j.target).host;}catch{host=j.target;}const b=button('',()=>{selected=j.id;logSelection=null;refresh();},j.id===selected?'active':'');b.append(node('b',host),node('small',j.status+' · '+new Date(j.created).toLocaleString()));$('history').append(b);}
- const job=scans.find(j=>j.id===selected);if(!job)return;
+ const job=scans.find(j=>j.id===selected);if(!job){selected=null;lastRendered='';logSelection=null;$('job-title').textContent='Ready when you are';for(const id of ['job-actions','job-summary','pipeline-status','coverage'])$(id).replaceChildren();$('scan-monitor').hidden=true;$('technical').hidden=true;$('findings').replaceChildren(node('p','No saved scans. Start a new assessment.'));return;}
  renderMonitor(job);
  const signature=job.id+':'+job.revision+':'+$('result-filter').value;if(signature===lastRendered){return;}lastRendered=signature;
  $('job-title').textContent=job.target;$('job-actions').replaceChildren();
  if(active(job))$('job-actions').append(button('Stop',()=>stop(job)));
- else $('job-actions').append(button('Read report',()=>previewReport(job)),button('↓ Word',()=>download(job),'button primary'),button('HTML',()=>download(job,'html')));
+ else $('job-actions').append(button('Read report',()=>previewReport(job)),button('↓ Word',()=>download(job),'button primary'),button('HTML',()=>download(job,'html')),button('Delete scan',()=>deleteScan(job),'button outline danger'));
  const done=(job.stages||[]).filter(s=>s.status==='done').length;
  const running=(job.stages||[]).filter(s=>s.status==='running').map(s=>s.name).join(', ');
  const summary=node('div',(job.version?'v'+job.version+' · ':'')+job.status.toUpperCase()+' · '+done+' checks completed'+(running?' · Running '+running:'')+(job.routing?' · '+job.routing.live+' live URLs':''),'status-line');
@@ -57,7 +57,7 @@ async function renderSetup(){
  }
 }
 async function downloadSetup(job,format){try{const response=await fetch('/api/setup-report/'+job.id+'?format='+format,{headers:{'X-Lab-Token':token}});if(!response.ok)throw new Error((await response.json()).error);const link=node('a');link.href=URL.createObjectURL(await response.blob());link.download='lab-setup-'+job.id.slice(0,8)+'.'+format;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),10000);}catch(e){error(e.message);}}
-async function refresh(){if(polling)return;polling=true;try{const state=await api('/api/state');jobs=state.jobs.map(j=>({...detailsCache.get(j.id),...j}));currentOS=state.os;$('version').textContent='v'+(state.version||'3.4.0');
+async function refresh(){if(polling)return;polling=true;try{const state=await api('/api/state');jobs=state.jobs.map(j=>({...detailsCache.get(j.id),...j}));currentOS=state.os;$('version').textContent='v'+(state.version||'3.4.1');
  if(!isSetup){const scan=jobs.find(j=>j.id===selected&&j.kind==='scan')||jobs.find(j=>j.kind==='scan');if(scan){selected=scan.id;const cached=detailsCache.get(scan.id);if(!cached||cached.revision!==scan.revision){const detail=await api('/api/job/'+scan.id);detailsCache.set(scan.id,detail);jobs=jobs.map(j=>j.id===scan.id?detail:j);}}}
  $('runtime-choice').value=state.runtime;$('runtime-choice').disabled=state.busy;$('runtime-choice').querySelector('[value=wsl]').disabled=state.os!=='windows';$('runtime').textContent=state.os.toUpperCase()+' / '+state.runtime.toUpperCase();$('scan-button').disabled=state.busy;for(const id of ['linux-choice','native-choice','wsl-choice'])$(id).disabled=state.busy; if(currentOS==='windows')$('linux-choice').disabled=true;else{$('windows-choice').disabled=true;$('native-choice').disabled=true;$('wsl-choice').disabled=true;}if(isSetup)await renderSetup();else render();}catch(e){error(e.message);}finally{polling=false;}}
 const scanToolPanel=$('scan-tools');
@@ -100,4 +100,10 @@ function renderMonitor(job){
  const chosen=running.filter(s=>s.log).at(-1)||stages.filter(s=>s.log).at(-1);
  if($('follow-tool').checked&&chosen)logSelection={id:job.id,name:chosen.log};
  if(logSelection?.id===job.id)loadLog();else{$('scan-log').textContent='Waiting for tool output…';$('live-log-title').textContent='Live output';}
+}
+
+async function deleteScan(job){
+ if(active(job))return;
+ if(!window.confirm('Permanently delete this scan, its reports, downloaded JavaScript and raw logs? This cannot be undone.\n'+job.target))return;
+ try{const result=await api('/api/delete-scan/'+job.id,{confirm:true});detailsCache.delete(job.id);if(selected===job.id)selected=null;logSelection=null;lastRendered='';await refresh();$('error').textContent='Scan deleted · '+(result.deleted_bytes/1048576).toFixed(2)+' MB of files removed.';$('error').hidden=false;setTimeout(()=>$('error').hidden=true,9000);}catch(e){error(e.message);}
 }

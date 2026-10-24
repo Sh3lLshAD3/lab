@@ -3,6 +3,8 @@ import copy
 import json
 import os
 import secrets
+import shutil
+import re
 import subprocess
 import sys
 import threading
@@ -27,7 +29,7 @@ PORT=int(os.environ.get('LAB_PORT','8765'))
 BASE=f'http://127.0.0.1:{PORT}'
 DATA=ROOT/'data'; DATA.mkdir(exist_ok=True)
 LOCK=threading.RLock()
-JOBS={}; CANCELS={}; THREADS=[]
+JOBS={}; CANCELS={}; THREADS=[]; WORKERS=set()
 SETTINGS=ROOT/'settings.json'
 try: mode=json.loads(SETTINGS.read_text()).get('runtime','native')
 except (OSError,ValueError): mode='native'
@@ -54,8 +56,20 @@ def busy(): return any(j['status'] in ('queued','running') for j in JOBS.values(
 
 def background(function,*args):
     THREADS[:]=[t for t in THREADS if t.is_alive()]
-    thread=threading.Thread(target=function,args=args,daemon=True)
-    THREADS.append(thread); thread.start()
+    owner=getattr(function,'__self__',None)
+    job_id=getattr(owner,'job',{}).get('id') or (args[0].get('id') if args and isinstance(args[0],dict) else None)
+    if job_id:WORKERS.add(job_id)
+    def invoke():
+        try:function(*args)
+        finally:
+            with LOCK:
+                if job_id:WORKERS.discard(job_id)
+    thread=threading.Thread(target=invoke,daemon=True)
+    THREADS.append(thread)
+    try:thread.start()
+    except Exception:
+        if job_id:WORKERS.discard(job_id)
+        raise
 
 @app.before_request
 def protect():
@@ -145,6 +159,29 @@ def stop(job_id):
         if job_id not in CANCELS: return jsonify(error='Job is no longer running'),404
         CANCELS[job_id].set()
     return jsonify(ok=True)
+
+@app.post('/api/delete-scan/<job_id>')
+def delete_scan(job_id):
+    body=request.get_json(silent=True)
+    if not isinstance(body,dict) or body.get('confirm') is not True:return jsonify(error='Confirm permanent deletion'),400
+    with LOCK:
+        job=JOBS.get(job_id)
+        if not job or job.get('kind')!='scan':return jsonify(error='Scan not found'),404
+        if job.get('status') in ('running','queued') or job_id in WORKERS:return jsonify(error='Wait for the scan and report worker to finish'),409
+        if not re.fullmatch(r'[A-Za-z0-9_-]{1,64}',job_id):return jsonify(error='Invalid scan folder'),400
+        folder=DATA/job_id
+        if folder.is_symlink() or folder.resolve().parent!=DATA.resolve():return jsonify(error='Unsafe scan folder; deletion refused'),400
+        deleted_bytes=0
+        try:
+            if folder.exists():
+                for parent,dirs,files in os.walk(folder,followlinks=False):
+                    for name in files:
+                        path=Path(parent)/name
+                        if not path.is_symlink():deleted_bytes+=path.stat().st_size
+                shutil.rmtree(folder)
+        except OSError:return jsonify(error='Could not fully remove scan files. Check permissions and retry.'),500
+        JOBS.pop(job_id,None);CANCELS.pop(job_id,None)
+    return jsonify(ok=True,deleted_bytes=deleted_bytes)
 
 @app.get('/api/report/<job_id>')
 def report(job_id):

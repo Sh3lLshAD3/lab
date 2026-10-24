@@ -62,3 +62,6 @@ Upstream tools are installed from current modules/branches. CLI flags and schema
 
 ## 3.4.0 execution inventory
 59 unit tests and UI DOM checks pass. New tests distinguish downloads/parser events from commands, preserve failure/rerun counts, and avoid invented legacy test counts. Word fixture rendered and inspected for table wrapping and page boundaries. No real external scan performed.
+
+## 3.4.1 deletion
+63 unit tests pass. Deletion tests verify explicit confirmation, authentication, selected-folder removal, other-folder preservation, active scan/report protection, and symlink-root rejection. DOM harness verifies Delete clears scan history and monitor. No user scan files were deleted during development.
