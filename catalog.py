@@ -16,17 +16,18 @@ CHECKS={
  'dalfox':['version'],'ffuf':['-V'],'arjun':['-h'],'sqlmap':['--version'],
  'nuclei':['-version'],'nikto':['-Version'],'katana':['-version'],
  'dnsx':['-version'],'naabu':['-version'],'dnsrecon':['-h'],
- 'nmap':['--version'],'photon':['-h'],'theHarvester':['-h'],
+ 'secretfinder':['-h'],'nmap':['--version'],'photon':['-h'],'theHarvester':['-h'],
 }
 OPTIONAL=tuple(name for name in CHECKS if name not in CORE)
-SCANNABLE=CORE+('katana','dnsrecon','nmap','dnsx','naabu','photon','theHarvester')
+SCANNABLE=CORE+('secretfinder','katana','dnsrecon','nmap','dnsx','naabu','photon','theHarvester')
 INSTALLABLE=SCANNABLE
 
-SOURCES={'dnsrecon':'https://github.com/darkoperator/dnsrecon.git','photon':'https://github.com/s0md3v/Photon.git','theHarvester':'https://github.com/laramies/theHarvester.git'}
+SOURCES={'secretfinder':'https://github.com/m4ll0k/SecretFinder.git','dnsrecon':'https://github.com/darkoperator/dnsrecon.git','photon':'https://github.com/s0md3v/Photon.git','theHarvester':'https://github.com/laramies/theHarvester.git'}
 PHASES={name:phase for phase,names in {
  'DNS and passive discovery':('subfinder','waybackurls','dnsx','dnsrecon','theHarvester'),
  'Ports and services':('naabu','nmap'),
  'Web probing and crawling':('httpx','katana','photon'),
+ 'JavaScript secrets':('secretfinder',),
  'Parameters and paths':('ffuf','arjun'),
  'Vulnerability checks':('dalfox','sqlmap','nuclei','nikto'),
 }.items() for name in names}

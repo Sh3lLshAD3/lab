@@ -2,7 +2,7 @@
 import ipaddress
 from urllib.parse import urlsplit, urlunsplit, parse_qsl
 
-STATIC = {'.png','.jpg','.jpeg','.gif','.svg','.webp','.ico','.css','.woff','.woff2','.ttf','.mp4','.pdf','.zip'}
+STATIC = {'.js','.mjs','.cjs','.png','.jpg','.jpeg','.gif','.svg','.webp','.ico','.css','.woff','.woff2','.ttf','.mp4','.pdf','.zip'}
 
 def normalize(value):
     if any(c in value for c in ('\r','\n','\t')): raise ValueError('Control characters are not allowed in URLs')

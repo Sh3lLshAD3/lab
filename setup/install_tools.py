@@ -68,7 +68,7 @@ def main():
                 dest=checkout(name,base/name,call,update=update)
                 venv=dest/'.venv' if name=='dnsrecon' else base/'venvs'/name
                 tool_python=venv/('Scripts/python.exe' if os.name=='nt' else 'bin/python')
-                if name=='photon':
+                if name in ('photon','secretfinder'):
                     if not tool_python.is_file():call([sys.executable,'-m','venv',venv])
                     call([tool_python,'-m','pip','install','--no-cache-dir','-r',dest/'requirements.txt'])
                 else:

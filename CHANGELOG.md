@@ -1,3 +1,11 @@
+## 3.2.0 — SecretFinder JavaScript checks
+
+- Official SecretFinder git clone and requirements.txt installation into an isolated system environment.
+- Seventeenth selectable tool in Setup, inventory and scans; published secretfinder command.
+- Routes discovered in-scope .js/.mjs/.cjs URLs (including query strings) to downloaded local-file CLI analysis. HTTP redirects are not followed; files are limited to 8 MB. Inline JavaScript and undiscovered script URLs are not covered.
+- Candidate matches appear in live results and Word/HTML reports; download errors remain visible in tool status. Secret values are retained in local logs and reports and are not validated against third-party services.
+- Arjun/Nuclei unlimited job execution remains unchanged.
+
 ## 3.1.2 — Long Arjun and Nuclei scans
 
 Removed the 300-second Arjun and 900-second Nuclei job deadlines. Both now run until exit or user Stop, without the generic 50 MB log cutoff. Request-level network timeouts remain. Logs can grow during long runs; actual failures are still reported. Existing completed jobs are not rerun or rewritten.

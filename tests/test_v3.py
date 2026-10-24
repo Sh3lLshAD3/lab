@@ -14,7 +14,7 @@ from version import VERSION
 
 class ReconV3Tests(unittest.TestCase):
     def test_all_sixteen_tools_are_scannable_and_installable(self):
-        self.assertEqual(len(SCANNABLE),16);self.assertEqual(set(SCANNABLE),set(INSTALLABLE))
+        self.assertEqual(len(SCANNABLE),17);self.assertEqual(set(SCANNABLE),set(INSTALLABLE))
     def test_complete_recon_fixture_routes_outputs(self):
         with tempfile.TemporaryDirectory() as tmp,patch.object(engine,'ROOT',Path(tmp)):
             job={'id':'v3','status':'queued','kind':'scan','created':'2026-10-24','target':'https://lab.example/a?id=1','scope':['lab.example'],'tools':list(SCANNABLE),'runtime':'native','limits':{'urls':30,'roots':2,'parameters':12,'endpoints':8},'options':{'crawl_depth':2,'top_ports':1000,'harvester_sources':['crtsh','otx']},'stages':[],'findings':[]}
@@ -47,7 +47,7 @@ class ReconV3Tests(unittest.TestCase):
                 return log
             worker.run=run;worker.execute()
             self.assertEqual(job['status'],'complete');self.assertEqual(job['version'],VERSION)
-            self.assertEqual({name for name,args in calls},set(SCANNABLE))
+            self.assertEqual({name for name,args in calls},set(SCANNABLE)-{'secretfinder'})
             self.assertTrue(any(name=='dalfox' and 'https://lab.example/photon?search=1' in args for name,args in calls))
             self.assertTrue(any(name=='sqlmap' and 'https://lab.example/katana?q=1' in args for name,args in calls))
             self.assertTrue(any(name=='nmap' and '-p' in args and '8443' in args for name,args in calls))
@@ -55,7 +55,8 @@ class ReconV3Tests(unittest.TestCase):
             self.assertTrue(all('outside.example' not in str(args) and 'unauthorized.lab.example' not in str(args) for name,args in calls))
             self.assertEqual(job['summary']['open_ports'],1)
             self.assertTrue(any(f['tool']=='theHarvester' and f['kind']=='observation' for f in job['findings']))
-            self.assertTrue(all(item['state']=='done' for item in job['coverage'].values()))
+            self.assertEqual(job['coverage']['secretfinder']['state'],'not applicable')
+            self.assertTrue(all(item['state']=='done' for name,item in job['coverage'].items() if name!='secretfinder'))
     def test_recon_runs_without_web_listener(self):
         with tempfile.TemporaryDirectory() as tmp,patch.object(engine,'ROOT',Path(tmp)):
             job={'id':'no-web','status':'queued','kind':'scan','created':'2026-10-24','target':'http://localhost:3333/','scope':['localhost'],'tools':['httpx','naabu'],'limits':{'urls':20,'roots':1,'parameters':2,'endpoints':2},'stages':[],'findings':[]}

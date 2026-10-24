@@ -40,6 +40,10 @@ class Runtime:
         if tool=='dnsrecon' and (self.base/'dnsrecon/pyproject.toml').is_file():
             wrapper=self.base/'bin'/('dnsrecon.cmd' if os.name=='nt' else 'dnsrecon')
             if wrapper.is_file():return [str(wrapper)]
+        if tool=='secretfinder':
+            py=self.base/'venvs/secretfinder'/('Scripts/python.exe' if os.name=='nt' else 'bin/python')
+            script=self.base/'secretfinder/SecretFinder.py'
+            if py.is_file() and script.is_file():return [str(py),str(script)]
         if tool in ('photon','theHarvester'):
             envdir=self.base/'venvs'/tool
             py=envdir/('Scripts/python.exe' if os.name=='nt' else 'bin/python')

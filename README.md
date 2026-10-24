@@ -1,4 +1,4 @@
-# Pentest Lab Unified 3.1.2
+# Pentest Lab Unified 3.0.1
 
 এই version-এ scanner tools lab folder-এর মধ্যে install হয় না। Existing verified system tools ব্যবহার হয়; missing selected tools system location-এ install হয়। Update checkbox default off থাকে।
 
@@ -47,12 +47,6 @@ Python scanner dependencies আলাদা environment-এ থাকবে, ক
 ## Linux বা Kali তে শুরু
 
 Python 3.11+, venv এবং apt-based distribution প্রয়োজন।
-
-## Installation
-
-```bash
-git clone --depth 1 https://github.com/Sh3lLshAD3/lab.git lab-dev
-```
 
 ```bash
 bash start-linux.sh
@@ -135,3 +129,8 @@ sudo env LAB_SELECTED_TOOLS=photon,theHarvester bash setup/install-linux.sh
 ```
 
 এটিও system location-এ install করে এবং full `/tmp` এড়িয়ে disk temporary storage ব্যবহার করে।
+
+## SecretFinder (3.2.0)
+Select SecretFinder in Setup and install it before scanning. The installer clones https://github.com/m4ll0k/SecretFinder.git and installs requirements.txt with its dedicated Python environment. Linux source: /opt/pentest-lab-tools/secretfinder; environment: /opt/pentest-lab-tools/venvs/secretfinder; terminal command: secretfinder. Windows uses the corresponding ProgramData locations.
+
+Full scans include SecretFinder; core scans do not. Discovered in-scope .js/.mjs/.cjs URLs from archives, crawlers and live URL inputs are downloaded without following redirects, then scanned offline with SecretFinder.py -i LOCALFILE -o cli. Results are unverified candidates, not proof that a credential is valid. Inline scripts and pages whose JS links were not discovered are not scanned. Download limits: 8 MB per script, 40-second budget with 10-second socket timeout. CLI analysis uses a 180-second limit per file. Local logs and reports can contain sensitive match text.

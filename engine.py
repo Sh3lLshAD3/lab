@@ -16,6 +16,7 @@ from report import export
 from catalog import CORE,SCANNABLE,PHASES
 from version import VERSION
 import recon
+import javascript_scan
 from inventory import probe
 
 def now(): return datetime.now(timezone.utc).isoformat(timespec='seconds')
@@ -74,7 +75,7 @@ class Engine:
         key=(tool,title,normalize(url),str(evidence)[:6000])
         if key in self.finding_keys:return
         self.finding_keys.add(key)
-        kind='candidate' if tool in ('dalfox','sqlmap','nuclei','nikto') else 'observation'
+        kind='candidate' if tool in ('dalfox','sqlmap','nuclei','nikto','secretfinder') else 'observation'
         item={'kind':kind,'tool':tool,'title':title,'url':url,'severity':severity,
               'evidence':str(evidence)[:6000], 'recommendation': 'Review the raw evidence and reproduce in the authorized lab. Apply the relevant input validation, access control or configuration fix after validation.'}
         self.job['findings'].append(item)
@@ -178,6 +179,8 @@ class Engine:
             candidates=self.file('crawler-probe.txt',extra);output=self.directory/'crawler-httpx.jsonl'
             self.run('httpx',['-l',self.rp(candidates),'-json','-silent','-rl','3','-t','2','-timeout','10','-o',self.rp(output)])
             live=self.scope.filter(live+[r.get('url','') for r in records(output) if isinstance(r,dict) and r.get('status_code',0)])
+        javascript_scan.scan(self,list(urls)+list(extra)+list(live),lines,now)
+        if self.cancel.is_set():return
         live=dedupe_parameters(live)[:self.job['limits']['urls']]
         routed=route(live)
         roots=routed['roots'][:self.job['limits']['roots']]

@@ -9,6 +9,7 @@ def publish_command(name,base,env,bin_directory=None):
         if name=='dnsrecon':
             uv=base/'manager-venv/Scripts/uv.exe'
             command='set "UV_PROJECT_ENVIRONMENT='+str(base/'dnsrecon/.venv')+'"\nset "UV_PYTHON_INSTALL_DIR='+str(base/'python-runtimes')+'"\n"'+str(uv)+'" run --project "'+str(base/'dnsrecon')+'" --no-sync dnsrecon'
+        elif name=='secretfinder':command='"'+str(base/'venvs/secretfinder/Scripts/python.exe')+'" "'+str(base/'secretfinder/SecretFinder.py')+'"'
         elif name=='photon':command='"'+str(base/'venvs/photon/Scripts/python.exe')+'" "'+str(base/'photon/photon.py')+'"'
         elif name=='theHarvester':command='"'+str(base/'venvs/theHarvester/Scripts/theHarvester.exe')+'"'
         elif name in ('arjun','dnsrecon'):
@@ -37,6 +38,7 @@ def publish_command(name,base,env,bin_directory=None):
         wrapper.write_text('#!/bin/sh\nexport UV_PROJECT_ENVIRONMENT='+shlex.quote(str(base/'dnsrecon/.venv'))+'\nexport UV_PYTHON_INSTALL_DIR='+shlex.quote(str(base/'python-runtimes'))+'\nexec '+shlex.quote(str(base/'manager-venv/bin/uv'))+' run --project '+shlex.quote(str(base/'dnsrecon'))+' --no-sync dnsrecon "$@"\n')
         wrapper.chmod(0o755);target=wrapper
     elif name=='arjun':target=base/'venv/bin'/name
+    elif name=='secretfinder':target=base/'secretfinder/SecretFinder.py'
     elif name=='photon':target=base/'photon/photon.py'
     elif name=='theHarvester':target=base/'venvs/theHarvester/bin/theHarvester'
     elif name=='sqlmap':target=base/'sqlmap/sqlmap.py'
@@ -47,9 +49,9 @@ def publish_command(name,base,env,bin_directory=None):
     if link.exists() and not link.is_symlink():
         raise RuntimeError(f'{link} is already a real file. Existing file was preserved; choose how to resolve the conflict manually.')
     if link.is_symlink():link.unlink()
-    if name in ('sqlmap','nikto','photon'):
+    if name in ('sqlmap','nikto','photon','secretfinder'):
         import shlex
-        interpreter=str(base/'venvs/photon/bin/python') if name=='photon' else str(base/'venv/bin/python') if name=='sqlmap' else '/usr/bin/perl'
+        interpreter=str(base/'venvs'/name/'bin/python') if name in ('photon','secretfinder') else str(base/'venv/bin/python') if name=='sqlmap' else '/usr/bin/perl'
         wrapper=base/'bin'/name
         wrapper.write_text('#!/bin/sh\n'+('cd '+shlex.quote(str(base/'photon'))+' || exit 1\n' if name=='photon' else '')+'exec '+shlex.quote(interpreter)+' '+shlex.quote(str(target))+' "$@"\n')
         wrapper.chmod(0o755);target=wrapper

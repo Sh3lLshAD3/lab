@@ -22,7 +22,7 @@ function Install-Package($Command, $Id) {
 try {
   Install-Package 'git' 'Git.Git'
   $Selected = @()
-  if ($env:LAB_SELECTED_TOOLS) { $Selected = $env:LAB_SELECTED_TOOLS.Split(',') } else { $Selected = @('subfinder','httpx','waybackurls','dalfox','ffuf','arjun','sqlmap','nuclei','nikto','katana','dnsrecon','nmap','dnsx','naabu','photon','theHarvester') }
+  if ($env:LAB_SELECTED_TOOLS) { $Selected = $env:LAB_SELECTED_TOOLS.Split(',') } else { $Selected = @('subfinder','httpx','waybackurls','dalfox','ffuf','arjun','sqlmap','nuclei','nikto','katana','dnsrecon','nmap','dnsx','naabu','photon','theHarvester','secretfinder') }
   $GoTools = @('subfinder','httpx','waybackurls','dalfox','ffuf','nuclei','katana','dnsx','naabu')
   if (@($Selected | Where-Object { $GoTools -contains $_ }).Count -gt 0) { Install-Package 'go' 'GoLang.Go' }
   if ($Selected -contains 'nikto' -or $Selected.Count -eq 0) { Install-Package 'perl' 'StrawberryPerl.StrawberryPerl' }

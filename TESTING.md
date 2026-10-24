@@ -53,3 +53,6 @@ Upstream tools are installed from current modules/branches. CLI flags and schema
 
 ## 3.1.2 unlimited jobs
 49 unit tests pass, including real local subprocess completion and cancellation with no job deadline. UI DOM checks pass. No external scans performed.
+
+## 3.2.0 SecretFinder
+52 unit tests pass, plus the updated 17-tool DOM harness. New tests cover exact-scope JS routing with query strings and limits, local-file CLI input, candidate extraction, download failure, and redirect rejection. Upstream SecretFinder installation and actual regex execution were not performed. No external target scan was run.
