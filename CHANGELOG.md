@@ -1,3 +1,12 @@
+## 3.5.0 — Live terminal console and Nuclei progress
+
+- Displays the actual process argument vector and merged stdout/stderr with incremental byte paging. Console stays scrollable; upward wheel/scroll pauses auto-scroll. Load earlier output and Jump to live controls retain access to old and current log sections. Console text buffer is capped at 4 million characters.
+- Nuclei emits JSON statistics every five seconds. UI shows supported request/error/rate/percent counters and last update; unchanged request count for two minutes prompts review without claiming a confirmed hang. WAF detection alone is not treated as proof of blocking.
+- Nuclei Balanced default uses 10 requests/sec and 5 concurrent templates; Conservative retains 3/1. No total scan timeout is imposed. These settings cannot guarantee the duration of a manual terminal invocation with different inputs/templates.
+- Skip tool stops the exact active invocation and omits later invocations of that tool while continuing the pipeline. Whole-job Stop remains available.
+- SQLmap adds verbosity 2, explicit GET parameter selection, DBMS error parsing and per-invocation HTTP traffic files. No exploitation, database extraction or tamper flags added.
+- Informational Nuclei matches are recon observations and excluded from vulnerability pie charts.
+
 ## 3.4.1 — Delete saved scans
 
 Completed, failed, stopped and interrupted scan jobs can be permanently deleted from their result actions after an explicit UI confirmation. Removes only the selected job folder and history entry, reports, logs and downloaded evidence. Running/queued jobs and active report workers are protected. Authenticated endpoint rejects unsafe or symlink job roots. Logical file bytes removed are shown; OS free space may differ. Installed tools are unaffected.

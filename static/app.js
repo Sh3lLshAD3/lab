@@ -15,7 +15,7 @@ function error(text){$('error').textContent=text;$('error').hidden=false;setTime
 async function api(path,data){const r=await fetch(path,{method:data?'POST':'GET',headers:{'X-Lab-Token':token,...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined});if(!r.ok){let message='Request failed';try{message=(await r.json()).error||message;}catch{}throw new Error(message);}return r.json();}
 $('setup-link').onclick=()=>window.open('/setup#'+token,'_blank');
 $('scope-toggle').onclick=()=>$('scope-panel').hidden=!$('scope-panel').hidden;
-$('scan-form').onsubmit=async event=>{event.preventDefault();try{const data={url:$('target').value,hosts:$('hosts').value,authorized:$('authorized').checked,options:{crawl_depth:Number($('crawl-depth').value),top_ports:Number($('top-ports').value),harvester_sources:$('harvester-sources').value.split(',')},tools:[...document.querySelectorAll('[data-scan-tool]:checked')].map(el=>el.dataset.scanTool)};for(const key of ['urls','roots','endpoints','parameters'])data[key]=Number($(key).value);const r=await api('/api/scan',data);selected=r.id;logSelection=null;await refresh();$('workspace').scrollIntoView({behavior:'smooth',block:'start'});}catch(e){error(e.message);}};
+$('scan-form').onsubmit=async event=>{event.preventDefault();try{const data={url:$('target').value,hosts:$('hosts').value,authorized:$('authorized').checked,options:{nuclei_speed:$('nuclei-speed').value,crawl_depth:Number($('crawl-depth').value),top_ports:Number($('top-ports').value),harvester_sources:$('harvester-sources').value.split(',')},tools:[...document.querySelectorAll('[data-scan-tool]:checked')].map(el=>el.dataset.scanTool)};for(const key of ['urls','roots','endpoints','parameters'])data[key]=Number($(key).value);const r=await api('/api/scan',data);selected=r.id;logSelection=null;await refresh();$('workspace').scrollIntoView({behavior:'smooth',block:'start'});}catch(e){error(e.message);}};
 function button(text,handler,cls='button outline'){const b=node('button',text,cls);b.onclick=handler;return b;}
 function active(job){return ['queued','running'].includes(job.status);}
 async function stop(job){try{await api('/api/stop/'+job.id,{});await refresh();}catch(e){error(e.message);}}
@@ -42,7 +42,33 @@ function render(){
  for(const f of visibleFindings){const card=node('article',undefined,'finding');const heading=node('div',undefined,'finding-head');heading.append(node('h3',f.title),node('span',f.severity,'badge '+f.severity));card.append(heading,node('div',f.url,'url'),node('p',f.tool+' · '+(f.kind==='observation'?'Recon observation':'Automated candidate; review required')));const detail=node('details');detail.dataset.key=f.tool+'|'+f.url+'|'+f.title;detail.open=opened.has(detail.dataset.key);detail.append(node('summary','View evidence'),node('pre',f.evidence));card.append(detail);$('findings').append(card);}
  $('technical').hidden=false;$('coverage').replaceChildren();for(const s of job.stages||[]){const row=node('div',undefined,'stage');row.append(node('span',s.name+' · '+s.status+' · '+(s.detail||'')));if(s.log)row.append(button('Log',()=>{$('follow-tool').checked=false;logSelection={id:job.id,name:s.log};loadLog();},''));$('coverage').append(row);}
 }
-async function loadLog(){const selection=logSelection;if(!selection)return;try{const v=await api('/api/log/'+selection.id+'/'+selection.name);$('scan-log').hidden=false;if(!logSelection||logSelection.id!==selection.id||logSelection.name!==selection.name)return;$('scan-log').textContent=v.text||'Waiting for tool output…';$('live-log-title').textContent='Live output · '+selection.name;if($('follow-log').checked)$('scan-log').scrollTop=$('scan-log').scrollHeight;}catch(e){error(e.message);}}
+let logBuffer={key:'',start:0,end:0,text:''},logBusy=false;
+async function loadLog(older=false){
+ const selection=logSelection;if(!selection||logBusy)return;logBusy=true;
+ try{
+  const key=selection.id+'/'+selection.name,newLog=key!==logBuffer.key;
+  let query='';if(!newLog){if(older){if(!logBuffer.start)return;query='?offset='+Math.max(0,logBuffer.start-262144)+'&limit='+Math.min(262144,logBuffer.start);}else query='?offset='+logBuffer.end;}
+  const v=await api('/api/log/'+key+query);if(!logSelection||selection.id!==logSelection.id||selection.name!==logSelection.name)return;
+  const console=$('scan-log'),top=console.scrollTop,height=console.scrollHeight;
+  if(!newLog&&logBuffer.text.length+(v.text||'').length>4000000){$('tool-live-stats').textContent='Console buffer full. Use Jump to live to view the latest output.';return;}
+  if(v.offset===undefined){logBuffer={key,start:0,end:0,text:v.text||''};}
+  else if(newLog)logBuffer={key,start:v.offset,end:v.next_offset,text:v.text};
+  else if(older){logBuffer.text=v.text+logBuffer.text;logBuffer.start=v.offset;}
+  else{logBuffer.text+=v.text;logBuffer.end=v.next_offset;}
+  // Bound browser memory while preserving access to older data via paging.
+  console.hidden=false;if(console.textContent!==logBuffer.text)console.textContent=logBuffer.text||'Waiting for tool output…';
+  $('live-log-title').textContent='Live output · '+selection.name;
+  if(older)console.scrollTop=top+console.scrollHeight-height;else if($('follow-log').checked)console.scrollTop=console.scrollHeight;else console.scrollTop=top;
+  $('older-log').disabled=!logBuffer.start;
+ }catch(e){error(e.message);}finally{logBusy=false;}
+}
+$('older-log').onclick=()=>{$('follow-log').checked=false;loadLog(true);};
+$('latest-log').onclick=()=>{$('follow-tool').checked=true;$('follow-log').checked=true;logBuffer.key='';loadLog();};
+$('scan-log').addEventListener('wheel',e=>{if(e.deltaY<0)$('follow-log').checked=false;},{passive:true});
+$('scan-log').addEventListener('scroll',()=>{const el=$('scan-log');if(el.scrollTop+el.clientHeight<el.scrollHeight-30)$('follow-log').checked=false;});
+$('follow-log').onchange=()=>{if($('follow-log').checked)$('scan-log').scrollTop=$('scan-log').scrollHeight;};
+$('skip-tool').onclick=async()=>{const job=jobs.find(j=>j.id===selected),stage=job?.stages?.findLast(s=>s.status==='running'&&s.log);if(!stage)return;try{await api('/api/skip-tool/'+job.id,{log:stage.log});await refresh();}catch(e){error(e.message);}};
+
 async function setup(platform){try{const tools=[...document.querySelectorAll('[data-install-tool]:checked')].map(el=>el.dataset.installTool);if(!tools.length)throw new Error('Select at least one tool from the inventory');const r=await api('/api/setup',{platform,tools,update:$('update-tools').checked});selected=r.id;await refresh();}catch(e){error(e.message);}}
 $('windows-choice').onclick=()=>$('windows-options').hidden=!$('windows-options').hidden;
 $('linux-choice').onclick=()=>setup('linux');$('wsl-choice').onclick=()=>setup('wsl');$('native-choice').onclick=()=>setup('windows');
@@ -57,7 +83,7 @@ async function renderSetup(){
  }
 }
 async function downloadSetup(job,format){try{const response=await fetch('/api/setup-report/'+job.id+'?format='+format,{headers:{'X-Lab-Token':token}});if(!response.ok)throw new Error((await response.json()).error);const link=node('a');link.href=URL.createObjectURL(await response.blob());link.download='lab-setup-'+job.id.slice(0,8)+'.'+format;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),10000);}catch(e){error(e.message);}}
-async function refresh(){if(polling)return;polling=true;try{const state=await api('/api/state');jobs=state.jobs.map(j=>({...detailsCache.get(j.id),...j}));currentOS=state.os;$('version').textContent='v'+(state.version||'3.4.1');
+async function refresh(){if(polling)return;polling=true;try{const state=await api('/api/state');jobs=state.jobs.map(j=>({...detailsCache.get(j.id),...j}));currentOS=state.os;$('version').textContent='v'+(state.version||'3.5.0');
  if(!isSetup){const scan=jobs.find(j=>j.id===selected&&j.kind==='scan')||jobs.find(j=>j.kind==='scan');if(scan){selected=scan.id;const cached=detailsCache.get(scan.id);if(!cached||cached.revision!==scan.revision){const detail=await api('/api/job/'+scan.id);detailsCache.set(scan.id,detail);jobs=jobs.map(j=>j.id===scan.id?detail:j);}}}
  $('runtime-choice').value=state.runtime;$('runtime-choice').disabled=state.busy;$('runtime-choice').querySelector('[value=wsl]').disabled=state.os!=='windows';$('runtime').textContent=state.os.toUpperCase()+' / '+state.runtime.toUpperCase();$('scan-button').disabled=state.busy;for(const id of ['linux-choice','native-choice','wsl-choice'])$(id).disabled=state.busy; if(currentOS==='windows')$('linux-choice').disabled=true;else{$('windows-choice').disabled=true;$('native-choice').disabled=true;$('wsl-choice').disabled=true;}if(isSetup)await renderSetup();else render();}catch(e){error(e.message);}finally{polling=false;}}
 const scanToolPanel=$('scan-tools');
@@ -94,6 +120,10 @@ function renderMonitor(job){
  $('scan-counts').textContent=counts.running+' running · '+counts.done+' successful · '+counts.failed+' failed';
  const duration=s=>{if(!s.started)return '';const end=s.finished?Date.parse(s.finished):active(job)?Date.now():Date.parse(job.finished||job.created);return Math.max(0,Math.floor((end-Date.parse(s.started))/1000))+'s';};
  $('active-tool').textContent=running.length?'Running: '+running.map(s=>s.name+' · '+duration(s)).join(', '):active(job)?'Preparing next tool…':'Assessment '+job.status;
+ const current=running.filter(s=>s.command).at(-1);$('skip-tool').hidden=!current||!active(job);$('skip-tool').textContent=current?'Skip '+current.name:'Skip current tool';
+ const displayed=(!$('follow-tool').checked&&logSelection?stages.find(s=>s.log===logSelection.name):null)||current;
+ $('live-command').textContent=displayed?.command?'$ '+displayed.command.map(a=>JSON.stringify(a)).join(' '):'No active command';
+ const progress=current?.progress;$('tool-live-stats').textContent=progress?'Nuclei statistics · '+Object.entries(progress).filter(([k])=>k!=='waf_observed').map(([k,v])=>k+': '+v).join(' · ')+(current.progress_updated?' · updated '+new Date(current.progress_updated).toLocaleTimeString():''):'Waiting for tool progress; output buffering may delay updates.';if(progress?.waf_observed)$('tool-live-stats').textContent+=' · WAF observed; this does not establish blocking. Review request/error statistics.';if(current?.requests_changed_at&&Date.now()-Date.parse(current.requests_changed_at)>120000)$('tool-live-stats').textContent+=' · No request-count increase for over 2 minutes; waiting or stalled. Review output or Skip tool.';
  $('scan-tool-rows').replaceChildren();
  const names=Object.keys(job.coverage||{}).length?Object.keys(job.coverage):job.tools||[...new Set(stages.map(s=>s.name))];
  for(const name of names){const attempts=stages.filter(s=>s.name===name),last=attempts.at(-1),cover=job.coverage?.[name];const state=cover?.state||last?.status||'pending';const row=node('tr',undefined,'tool-status '+state.replaceAll(' ','-'));row.append(node('td',name),node('td',state==='done'?'Success':state),node('td',attempts.length+' / '+attempts.filter(s=>s.status==='done').length+' / '+attempts.filter(s=>['failed','timed out'].includes(s.status)).length),node('td',(cover?.detail||last?.detail||'')+(last?.started?' · '+duration(last):'')));if(last?.log)row.children[0].append(button('View log',()=>{$('follow-tool').checked=false;logSelection={id:job.id,name:last.log};loadLog();},'button outline'));$('scan-tool-rows').append(row);}

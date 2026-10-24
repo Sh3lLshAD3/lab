@@ -9,3 +9,5 @@
 .scan-monitor{border:1px solid #dbe3ef;border-radius:14px;padding:18px;margin:20px 0;background:#fff}.scan-monitor h3,.scan-monitor h4{margin:8px 0}.scan-monitor .console{max-height:280px;overflow:auto;white-space:pre-wrap}.tool-status.running{background:#fff4cc}.tool-status.failed,.tool-status.timed-out{background:#ffe3e5}.tool-status.done{background:#e4f8ec}.tool-status.skipped,.tool-status.not-selected{color:#657080}.tool-status td:nth-child(2){font-weight:700}.tool-status button{font-size:11px;padding:3px 7px;margin-left:8px}
 
 .button.danger{color:#b42318;border-color:#f0b4ad}.button.danger:hover{background:#fff0ed}
+
+#scan-log{height:360px;max-height:70vh;overflow:auto;white-space:pre;overflow-anchor:none;font:12px/1.6 ui-monospace,monospace;tab-size:4}#live-command{max-height:100px;overflow:auto;white-space:pre-wrap}#tool-live-stats{padding:10px 0;color:#46546a}

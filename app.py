@@ -29,7 +29,7 @@ PORT=int(os.environ.get('LAB_PORT','8765'))
 BASE=f'http://127.0.0.1:{PORT}'
 DATA=ROOT/'data'; DATA.mkdir(exist_ok=True)
 LOCK=threading.RLock()
-JOBS={}; CANCELS={}; THREADS=[]; WORKERS=set()
+JOBS={}; CANCELS={}; THREADS=[]; WORKERS=set(); ENGINES={}
 SETTINGS=ROOT/'settings.json'
 try: mode=json.loads(SETTINGS.read_text()).get('runtime','native')
 except (OSError,ValueError): mode='native'
@@ -59,16 +59,17 @@ def background(function,*args):
     owner=getattr(function,'__self__',None)
     job_id=getattr(owner,'job',{}).get('id') or (args[0].get('id') if args and isinstance(args[0],dict) else None)
     if job_id:WORKERS.add(job_id)
+    if isinstance(owner,Engine):ENGINES[job_id]=owner
     def invoke():
         try:function(*args)
         finally:
             with LOCK:
-                if job_id:WORKERS.discard(job_id)
+                if job_id:WORKERS.discard(job_id);ENGINES.pop(job_id,None)
     thread=threading.Thread(target=invoke,daemon=True)
     THREADS.append(thread)
     try:thread.start()
     except Exception:
-        if job_id:WORKERS.discard(job_id)
+        if job_id:WORKERS.discard(job_id);ENGINES.pop(job_id,None)
         raise
 
 @app.before_request
@@ -138,7 +139,9 @@ def scan():
         if top not in (100,1000):raise ValueError('Top ports must be 100 or 1000')
         providers=opts.get('harvester_sources',['crtsh','otx'])
         if not isinstance(providers,list) or not providers or any(p not in ('crtsh','otx','certspotter') for p in providers):raise ValueError('Unsupported OSINT source')
-        options={'crawl_depth':depth,'top_ports':top,'harvester_sources':list(dict.fromkeys(providers))}
+        speed=opts.get('nuclei_speed','balanced')
+        if speed not in ('conservative','balanced'):raise ValueError('Invalid Nuclei speed')
+        options={'nuclei_speed':speed,'crawl_depth':depth,'top_ports':top,'harvester_sources':list(dict.fromkeys(providers))}
         target=data.get('url','')
         if not isinstance(target,str) or not target.strip():raise ValueError('Enter a URL or domain')
         target=target.strip()
@@ -158,6 +161,16 @@ def stop(job_id):
     with LOCK:
         if job_id not in CANCELS: return jsonify(error='Job is no longer running'),404
         CANCELS[job_id].set()
+    return jsonify(ok=True)
+
+@app.post('/api/skip-tool/<job_id>')
+def skip_tool(job_id):
+    body=request.get_json(silent=True)
+    with LOCK:
+        worker=ENGINES.get(job_id)
+        if not worker or not worker.active_log:return jsonify(error='No active tool process'),409
+        if not isinstance(body,dict) or body.get('log')!=worker.active_log:return jsonify(error='Active tool changed; refresh and retry'),409
+        worker.skip_log=worker.active_log
     return jsonify(ok=True)
 
 @app.post('/api/delete-scan/<job_id>')
@@ -223,9 +236,15 @@ def log(job_id,name):
     if job_id not in JOBS or Path(name).name != name or not name.endswith('.log'): return jsonify(error='Log not found'),404
     path=DATA/job_id/name
     if not path.is_file(): return jsonify(error='Log not found'),404
+    size=path.stat().st_size
+    try:
+        limit=min(262144,max(1,int(request.args.get('limit',262144))))
+        offset=max(0,int(request.args.get('offset',max(0,size-limit))))
+    except ValueError:return jsonify(error='Invalid log position'),400
+    offset=min(offset,size)
     with path.open('rb') as stream:
-        stream.seek(max(0,path.stat().st_size-50_000)); text=stream.read().decode('utf-8',errors='replace')
-    result={'text':text}
+        stream.seek(offset);text=stream.read(limit).decode('utf-8',errors='replace');end=stream.tell()
+    result={'text':text,'offset':offset,'next_offset':end,'size':size}
     if name=='setup.log':
         job=JOBS[job_id]
         status_path=Runtime('wsl' if job.get('platform')=='wsl' else 'native').status_path

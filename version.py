@@ -1,2 +1,2 @@
-VERSION='3.4.1'
+VERSION='3.5.0'
 APP_NAME='Pentest Lab Unified'

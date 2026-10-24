@@ -65,3 +65,6 @@ Upstream tools are installed from current modules/branches. CLI flags and schema
 
 ## 3.4.1 deletion
 63 unit tests pass. Deletion tests verify explicit confirmation, authentication, selected-folder removal, other-folder preservation, active scan/report protection, and symlink-root rejection. DOM harness verifies Delete clears scan history and monitor. No user scan files were deleted during development.
+
+## 3.5.0 console and progress
+66 unit tests pass, including real fixture subprocess cancellation by Skip without whole-job cancellation, JSON stats parsing and WAF distinction, byte log paging and stale skip token rejection. Pipeline fixture checks Nuclei statistics/speed and SQLmap diagnostic flags. DOM harness verifies command display, upward-wheel auto-scroll pause, skip availability and incremental polling. Actual upstream Nuclei/SQLmap scans, terminal performance comparison, Windows and WSL process behavior were not exercised.

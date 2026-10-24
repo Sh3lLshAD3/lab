@@ -46,6 +46,12 @@ class ReconV3Tests(unittest.TestCase):
                 if tool=='nikto':output(args,'-output',{'vulnerabilities':[]})
                 return log
             worker.run=run;worker.execute()
+            nuclei_args=next(args for name,args in calls if name=='nuclei')
+            self.assertIn('-sj',nuclei_args);self.assertIn('-stats',nuclei_args)
+            self.assertEqual(nuclei_args[nuclei_args.index('-rl')+1],'10')
+            self.assertEqual(nuclei_args[nuclei_args.index('-c')+1],'5')
+            sql_args=next(args for name,args in calls if name=='sqlmap')
+            self.assertIn('-p',sql_args);self.assertIn('-t',sql_args);self.assertIn('--parse-errors',sql_args)
             self.assertEqual(job['status'],'complete');self.assertEqual(job['version'],VERSION)
             self.assertEqual({name for name,args in calls},set(SCANNABLE)-{'secretfinder'})
             self.assertTrue(any(name=='dalfox' and 'https://lab.example/photon?search=1' in args for name,args in calls))

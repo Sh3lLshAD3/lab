@@ -9,7 +9,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlsplit, urlunsplit, urlencode
+from urllib.parse import urlsplit, urlunsplit, urlencode, parse_qsl
 from scope import Scope, route, normalize, origin, dedupe_parameters
 from runtime import ROOT, Runtime, kill_tree, prepare_wsl_group, stop_process
 from report import export
@@ -17,6 +17,7 @@ from catalog import CORE,SCANNABLE,PHASES
 from version import VERSION
 import recon
 import javascript_scan
+from live_progress import read_progress
 from inventory import probe
 
 def now(): return datetime.now(timezone.utc).isoformat(timespec='seconds')
@@ -49,6 +50,7 @@ class Engine:
         self.finding_keys=set()
         self.last_finding_save=0
         self._httpx_verified=False
+        self.skip_log=None;self.active_log=None;self.skipped_tools=set()
     def checkpoint(self):
         coverage={name:{'state':'pending' if name in self.enabled else 'not selected','phase':PHASES.get(name,'Other')} for name in SCANNABLE}
         priority={'failed':7,'timed out':6,'cancelled':5,'running':8,'skipped':3,'done':2,'not applicable':1}
@@ -70,12 +72,12 @@ class Engine:
     def parse_warning(self,tool,text):
         self.job['stages'].append({'name':tool,'status':'failed','detail':text});self.checkpoint()
 
-    def finding(self,tool,title,url,evidence,severity='info'):
+    def finding(self,tool,title,url,evidence,severity='info',kind=None):
         if not self.scope.allows(url): return
         key=(tool,title,normalize(url),str(evidence)[:6000])
         if key in self.finding_keys:return
         self.finding_keys.add(key)
-        kind='candidate' if tool in ('dalfox','sqlmap','nuclei','nikto','secretfinder') else 'observation'
+        kind=kind or ('candidate' if tool in ('dalfox','sqlmap','nuclei','nikto','secretfinder') else 'observation')
         item={'kind':kind,'tool':tool,'title':title,'url':url,'severity':severity,
               'observed_at':now(),'confidence':'unverified',
               'evidence':str(evidence)[:6000], 'recommendation': 'Review the raw evidence and reproduce in the authorized lab. Apply the relevant input validation, access control or configuration fix after validation.'}
@@ -83,7 +85,7 @@ class Engine:
         if time.monotonic()-self.last_finding_save>.25:
             self.checkpoint();self.last_finding_save=time.monotonic()
     def run(self,tool,args,stdin=None,timeout=600):
-        if self.cancel.is_set() or tool not in self.enabled: return None
+        if self.cancel.is_set() or tool not in self.enabled or tool in self.skipped_tools: return None
         self.counter+=1
         stage={'name':tool,'status':'running','detail':'', 'started':now(),'execution_kind':'tool','process_started':False}
         self.job['stages'].append(stage); self.checkpoint()
@@ -110,12 +112,22 @@ class Engine:
                 proc=subprocess.Popen(argv,stdin=subprocess.PIPE if stdin is not None else subprocess.DEVNULL,
                     stdout=out,stderr=subprocess.STDOUT,env={**os.environ,'PYTHONUNBUFFERED':'1'},cwd=self.runtime.workdir(tool), start_new_session=os.name!='nt',
                     creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
-                stage['process_started']=True;self.checkpoint()
+                self.active_log=logfile.name;stage['process_started']=True;self.checkpoint()
                 if stdin is not None:
                     try: proc.stdin.write(stdin.encode()); proc.stdin.close()
                     except BrokenPipeError: pass
                 deadline=None if timeout is None else time.monotonic()+timeout
+                progress_tick=0
                 while proc.poll() is None:
+                    if self.skip_log==logfile.name:
+                        self.skipped_tools.add(tool);stop_process(self.runtime,proc,pidfile);stage.update(status='skipped',detail='Skipped by user; remaining invocations of this tool omitted');break
+                    if tool=='nuclei' and time.monotonic()-progress_tick>=2:
+                        progress_tick=time.monotonic();stats=read_progress(logfile)
+                        if stats and stats!=stage.get('progress'):
+                            if stats.get('requests')!=stage.get('progress',{}).get('requests'):stage['requests_changed_at']=now()
+                            stage['progress']=stats;stage['progress_updated']=now()
+                            if stats.get('waf_observed'):stage['detail']='WAF observed; detection alone does not prove blocked coverage. Review requests and errors.'
+                            self.checkpoint()
                     if self.cancel.wait(.2):
                         stop_process(self.runtime,proc,pidfile); stage.update(status='cancelled',detail='Stopped by user'); break
                     if deadline is not None and time.monotonic()>deadline:
@@ -129,6 +141,7 @@ class Engine:
         except Exception as exc:
             if proc is not None: stop_process(self.runtime,proc,pidfile)
             stage.update(status='failed',detail=str(exc))
+        self.active_log=None
         stage['finished']=now(); self.checkpoint()
         return logfile
     def file(self,name,items):
@@ -241,7 +254,7 @@ class Engine:
             if url not in scanned: dalfox(url)
         for i,url in enumerate(expanded):
             output=self.directory/f'sqlmap-{i}'
-            log=self.run('sqlmap',['-u',url,'--batch','--level=1','--risk=1','--threads=1','--delay=0.4','--timeout=10','--retries=0','--ignore-redirects','--disable-coloring','--output-dir='+self.rp(output)],timeout=600)
+            log=self.run('sqlmap',['-u',url,'-v','2','--parse-errors','-t',self.rp(self.directory/f'sqlmap-{i}-traffic.txt'),'-p',','.join(dict.fromkeys(k for k,v in parse_qsl(urlsplit(url).query,keep_blank_values=True))),'--batch','--level=1','--risk=1','--threads=1','--delay=0.4','--timeout=10','--retries=0','--ignore-redirects','--disable-coloring','--output-dir='+self.rp(output)],timeout=600)
             text='\n'.join(lines(log)) if log else ''
             # Require structured injection summary, not generic warning/error text.
             match=re.search(r'Parameter: .+?\n(?:.*\n){0,2}?\s*Type: .+',text)
@@ -250,11 +263,13 @@ class Engine:
         targets=self.file('nuclei-targets.txt',roots)
         output=self.directory/'nuclei.jsonl'
         template_args=self.runtime.templates_args()
-        self.run('nuclei',['-l',self.rp(targets),'-jsonl','-o',self.rp(output),'-rl','3','-c','1','-ni','-dr','-duc','-timeout','10','-retries','0',*template_args],timeout=None)
+        speed=self.job.get('options',{}).get('nuclei_speed','balanced')
+        rate,concurrency=(3,1) if speed=='conservative' else (10,5)
+        self.run('nuclei',['-stats','-sj','-si','5','-nc','-no-stdin','-l',self.rp(targets),'-jsonl','-o',self.rp(output),'-rl',str(rate),'-c',str(concurrency),'-ni','-dr','-duc','-timeout','10','-retries','0',*template_args],timeout=None)
         for r in records(output):
             if not isinstance(r,dict):continue
             info=r.get('info',{})
-            self.finding('nuclei',info.get('name','Template match'),r.get('matched-at',r.get('host',roots[0])),json.dumps(r,ensure_ascii=False),info.get('severity','unknown'))
+            self.finding('nuclei',info.get('name','Template match'),r.get('matched-at',r.get('host',roots[0])),json.dumps(r,ensure_ascii=False),info.get('severity','unknown'),kind='observation' if info.get('severity')=='info' else 'candidate')
         for i,root in enumerate(roots):
             if self.cancel.is_set(): return
             output=self.directory/f'nikto-{i}.json'
