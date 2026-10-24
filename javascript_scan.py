@@ -34,7 +34,7 @@ def scan(worker,urls,read_lines,now):
         worker.run('secretfinder',['-h']);return
     for index,url in enumerate(targets):
         if worker.cancel.is_set():return
-        stage={'name':'secretfinder','status':'running','detail':'Downloading '+url,'started':now()}
+        stage={'name':'secretfinder','status':'running','execution_kind':'download','detail':'Downloading '+url,'started':now()}
         worker.job['stages'].append(stage);worker.checkpoint()
         try:
             content=download(url,worker.cancel)

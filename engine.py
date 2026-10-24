@@ -77,6 +77,7 @@ class Engine:
         self.finding_keys.add(key)
         kind='candidate' if tool in ('dalfox','sqlmap','nuclei','nikto','secretfinder') else 'observation'
         item={'kind':kind,'tool':tool,'title':title,'url':url,'severity':severity,
+              'observed_at':now(),'confidence':'unverified',
               'evidence':str(evidence)[:6000], 'recommendation': 'Review the raw evidence and reproduce in the authorized lab. Apply the relevant input validation, access control or configuration fix after validation.'}
         self.job['findings'].append(item)
         if time.monotonic()-self.last_finding_save>.25:
@@ -84,7 +85,7 @@ class Engine:
     def run(self,tool,args,stdin=None,timeout=600):
         if self.cancel.is_set() or tool not in self.enabled: return None
         self.counter+=1
-        stage={'name':tool,'status':'running','detail':'', 'started':now()}
+        stage={'name':tool,'status':'running','detail':'', 'started':now(),'execution_kind':'tool','process_started':False}
         self.job['stages'].append(stage); self.checkpoint()
         command=self.runtime.command(tool)
         logfile=self.directory/f'{self.counter:03d}-{tool}.log'
@@ -109,6 +110,7 @@ class Engine:
                 proc=subprocess.Popen(argv,stdin=subprocess.PIPE if stdin is not None else subprocess.DEVNULL,
                     stdout=out,stderr=subprocess.STDOUT,env={**os.environ,'PYTHONUNBUFFERED':'1'},cwd=self.runtime.workdir(tool), start_new_session=os.name!='nt',
                     creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
+                stage['process_started']=True;self.checkpoint()
                 if stdin is not None:
                     try: proc.stdin.write(stdin.encode()); proc.stdin.close()
                     except BrokenPipeError: pass

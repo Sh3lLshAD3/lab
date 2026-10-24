@@ -56,3 +56,9 @@ Upstream tools are installed from current modules/branches. CLI flags and schema
 
 ## 3.2.0 SecretFinder
 52 unit tests pass, plus the updated 17-tool DOM harness. New tests cover exact-scope JS routing with query strings and limits, local-file CLI input, candidate extraction, download failure, and redirect rejection. Upstream SecretFinder installation and actual regex execution were not performed. No external target scan was run.
+
+## 3.3.0 report validation
+56 unit tests and the UI interaction harness pass. Fixture tests verify 30/40/30 percent distributions, observation exclusion, exact duplicate consolidation, distinct evidence preservation, empty results, embedded PNGs and SecretFinder masking in Word and HTML. A four-page QA-only Word fixture was rendered and every page visually inspected. No live external assessment or target platform installation was performed.
+
+## 3.4.0 execution inventory
+59 unit tests and UI DOM checks pass. New tests distinguish downloads/parser events from commands, preserve failure/rerun counts, and avoid invented legacy test counts. Word fixture rendered and inspected for table wrapping and page boundaries. No real external scan performed.

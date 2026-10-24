@@ -1,3 +1,11 @@
+## 3.4.0 — Test execution register
+
+Word and HTML list all 17 test methods with recorded command attempts, completion/failure counts, candidate counts and status. New stages explicitly distinguish actual tool commands and process launches from downloads and parser events. Counts are command attempts, not payload/request/template totals. Legacy records without metadata are excluded with an explicit limitation. Word adds a finding register with stable sequential F identifiers and a wide repeated-header test table. Referenced PentestReports collection and Groundtruth summary for report organization; no third-party findings are imported.
+
+## 3.3.0 — Evidence based report charts
+
+Word and portable HTML now embed candidate category pie charts, actual counts and percentages, executive summaries and explicit unverified confidence. Recon observations are excluded from charts. Conservative exact finding consolidation preserves distinct evidence, URLs, titles, methods and parameters. SecretFinder match values are hidden in exports; selected labeled credentials are masked. Raw job files retain evidence. New findings record observation timestamps. No automatic manual confirmation is inferred. Added Pillow dependency. Scan scheduling remains serial; parallel execution, resume and additional validation requests are not part of this release.
+
 ## 3.2.0 — SecretFinder JavaScript checks
 
 - Official SecretFinder git clone and requirements.txt installation into an isolated system environment.
