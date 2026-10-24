@@ -50,3 +50,6 @@ Upstream tools are installed from current modules/branches. CLI flags and schema
 
 ## 3.1.1 DNSRecon
 48 unit tests pass. A local executable fixture verifies the published DNSRecon wrapper invokes uv with the dedicated environment, project path and original arguments. Actual upstream download and uv dependency synchronization were not executed.
+
+## 3.1.2 unlimited jobs
+49 unit tests pass, including real local subprocess completion and cancellation with no job deadline. UI DOM checks pass. No external scans performed.

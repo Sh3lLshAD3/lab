@@ -111,12 +111,14 @@ class Engine:
                 if stdin is not None:
                     try: proc.stdin.write(stdin.encode()); proc.stdin.close()
                     except BrokenPipeError: pass
-                deadline=time.monotonic()+timeout
+                deadline=None if timeout is None else time.monotonic()+timeout
                 while proc.poll() is None:
                     if self.cancel.wait(.2):
                         stop_process(self.runtime,proc,pidfile); stage.update(status='cancelled',detail='Stopped by user'); break
-                    if time.monotonic()>deadline or logfile.stat().st_size>50_000_000:
-                        stop_process(self.runtime,proc,pidfile); stage.update(status='timed out',detail='Time or log size limit reached'); break
+                    if deadline is not None and time.monotonic()>deadline:
+                        stop_process(self.runtime,proc,pidfile); stage.update(status='timed out',detail='Configured execution time limit reached'); break
+                    if timeout is not None and logfile.stat().st_size>50_000_000:
+                        stop_process(self.runtime,proc,pidfile); stage.update(status='failed',detail='Log exceeded 50 MB storage limit'); break
                 proc.wait(timeout=15)
             if stage['status']=='running':
                 stage.update(status='done' if proc.returncode==0 else 'failed',detail=f'Exit code {proc.returncode}')
@@ -217,7 +219,7 @@ class Engine:
         expanded=list(parameters)
         for i,url in enumerate(endpoints):
             output=self.directory/f'arjun-{i}.json'
-            self.run('arjun',['-u',url,'-m','GET','--stable','-t','1','-d','0.5','-oJ',self.rp(output)],timeout=300)
+            self.run('arjun',['-u',url,'-m','GET','--stable','-t','1','-d','0.5','-oJ',self.rp(output)],timeout=None)
             for obj in records(output):
                 if not isinstance(obj,dict): continue
                 for found,info in obj.items():
@@ -243,7 +245,7 @@ class Engine:
         targets=self.file('nuclei-targets.txt',roots)
         output=self.directory/'nuclei.jsonl'
         template_args=self.runtime.templates_args()
-        self.run('nuclei',['-l',self.rp(targets),'-jsonl','-o',self.rp(output),'-rl','3','-c','1','-ni','-dr','-duc','-timeout','10','-retries','0',*template_args],timeout=900)
+        self.run('nuclei',['-l',self.rp(targets),'-jsonl','-o',self.rp(output),'-rl','3','-c','1','-ni','-dr','-duc','-timeout','10','-retries','0',*template_args],timeout=None)
         for r in records(output):
             if not isinstance(r,dict):continue
             info=r.get('info',{})

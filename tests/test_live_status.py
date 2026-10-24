@@ -34,3 +34,15 @@ class LiveStatusTests(unittest.TestCase):
             job={'id':'retry','target':'http://localhost/','scope':['localhost'],'tools':['ffuf'],'findings':[],'stages':[{'name':'ffuf','status':'failed'},{'name':'ffuf','status':'running'}],'status':'running'}
             worker=engine.Engine(job,lambda j:None,threading.Event());worker.checkpoint()
             self.assertEqual(job['coverage']['ffuf']['state'],'running');self.assertEqual(job['coverage']['ffuf']['failures'],1)
+
+    def test_unlimited_execution_completes_and_can_be_stopped(self):
+        for stop in (False,True):
+            with self.subTest(stop=stop),tempfile.TemporaryDirectory() as tmp,patch.object(engine,'ROOT',Path(tmp)):
+                job={'id':'long','target':'http://localhost/','scope':['localhost'],'tools':['arjun'],'findings':[],'stages':[],'status':'running'}
+                event=threading.Event();worker=engine.Engine(job,lambda j:None,event)
+                with patch.object(worker.runtime,'command',return_value=[sys.executable,'-c','import time;time.sleep(.5)']),patch.object(worker.runtime,'workdir',return_value=tmp),patch.object(engine,'prepare_wsl_group',side_effect=lambda rt,args,pid:args):
+                    timer=threading.Timer(.15,event.set) if stop else None
+                    if timer:timer.start()
+                    worker.run('arjun',[],timeout=None)
+                    if timer:timer.join()
+                self.assertEqual(job['stages'][-1]['status'],'cancelled' if stop else 'done')

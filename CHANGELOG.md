@@ -1,3 +1,7 @@
+## 3.1.2 — Long Arjun and Nuclei scans
+
+Removed the 300-second Arjun and 900-second Nuclei job deadlines. Both now run until exit or user Stop, without the generic 50 MB log cutoff. Request-level network timeouts remain. Logs can grow during long runs; actual failures are still reported. Existing completed jobs are not rerun or rewritten.
+
 ## 3.1.1 — DNSRecon source installation
 
 DNSRecon now clones the official darkoperator repository and uses uv sync with its own environment at /opt/pentest-lab-tools/dnsrecon/.venv. The system command runs uv run --no-sync dnsrecon, avoiding dependency downloads during scans. Existing verified installations are preserved unless update is selected. Select DNSRecon and enable update to migrate an older installation. uv is bootstrapped through an isolated manager environment rather than piping a downloaded shell script.
