@@ -83,7 +83,7 @@ async function renderSetup(){
  }
 }
 async function downloadSetup(job,format){try{const response=await fetch('/api/setup-report/'+job.id+'?format='+format,{headers:{'X-Lab-Token':token}});if(!response.ok)throw new Error((await response.json()).error);const link=node('a');link.href=URL.createObjectURL(await response.blob());link.download='lab-setup-'+job.id.slice(0,8)+'.'+format;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),10000);}catch(e){error(e.message);}}
-async function refresh(){if(polling)return;polling=true;try{const state=await api('/api/state');jobs=state.jobs.map(j=>({...detailsCache.get(j.id),...j}));currentOS=state.os;$('version').textContent='v'+(state.version||'3.5.1');
+async function refresh(){if(polling)return;polling=true;try{const state=await api('/api/state');jobs=state.jobs.map(j=>({...detailsCache.get(j.id),...j}));currentOS=state.os;$('version').textContent='v'+(state.version||'4.0.1');
  if(!isSetup){const scan=jobs.find(j=>j.id===selected&&j.kind==='scan')||jobs.find(j=>j.kind==='scan');if(scan){selected=scan.id;const cached=detailsCache.get(scan.id);if(!cached||cached.revision!==scan.revision){const detail=await api('/api/job/'+scan.id);detailsCache.set(scan.id,detail);jobs=jobs.map(j=>j.id===scan.id?detail:j);}}}
  $('runtime-choice').value=state.runtime;$('runtime-choice').disabled=state.busy;$('runtime-choice').querySelector('[value=wsl]').disabled=state.os!=='windows';$('runtime').textContent=state.os.toUpperCase()+' / '+state.runtime.toUpperCase();$('scan-button').disabled=state.busy;for(const id of ['linux-choice','native-choice','wsl-choice'])$(id).disabled=state.busy; if(currentOS==='windows')$('linux-choice').disabled=true;else{$('windows-choice').disabled=true;$('native-choice').disabled=true;$('wsl-choice').disabled=true;}if(isSetup)await renderSetup();else render();}catch(e){error(e.message);}finally{polling=false;}}
 const scanToolPanel=$('scan-tools');
@@ -110,7 +110,7 @@ $('scan-full').onclick=()=>document.querySelectorAll('[data-scan-tool]').forEach
 $('scan-core').onclick=()=>document.querySelectorAll('[data-scan-tool]').forEach(x=>x.checked=coreTools.includes(x.dataset.scanTool));
 $('result-filter').onchange=()=>render();
 
-function previewReport(job){const body=$('report-preview-body');body.replaceChildren(node('h2','Pentest Lab '+(job.version||'')+' Report'),node('p','Target: '+job.target),node('p','Status: '+job.status),node('p','Automated results require manual validation.'));for(const [name,item] of Object.entries(job.coverage||{}))body.append(node('p',name+' · '+item.state));for(const item of job.findings||[])body.append(node('h3',item.title),node('p',item.tool+' · '+item.url),node('pre',item.evidence));$('report-preview').showModal();}
+function previewReport(job){const body=$('report-preview-body');body.replaceChildren(node('h2','Pentest Lab '+(job.version||'')+' Report'),node('p','Target: '+job.target),node('p','Status: '+job.status),node('p','Automated results require manual validation.'));for(const [name,item] of Object.entries(job.coverage||{}))body.append(node('p',name+' · '+item.state));for(const item of job.findings||[])body.append(node('h3',item.title),node('p',item.tool+' · '+item.url),node('pre',item.evidence));body.append(node('p','Developed by Nowan','developer-signature'));$('report-preview').showModal();}
 $('report-preview-close').onclick=()=>$('report-preview').close();
 
 function renderMonitor(job){

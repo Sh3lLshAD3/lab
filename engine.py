@@ -18,6 +18,8 @@ from version import VERSION
 import recon
 import javascript_scan
 from live_progress import read_progress
+from tool_inputs import prepare_inputs
+from command_doctor import help_text,dalfox_profile,dalfox_arguments
 from inventory import probe
 
 def now(): return datetime.now(timezone.utc).isoformat(timespec='seconds')
@@ -50,6 +52,7 @@ class Engine:
         self.finding_keys=set()
         self.last_finding_save=0
         self._httpx_verified=False
+        self._dalfox_profile=None
         self.skip_log=None;self.active_log=None;self.skipped_tools=set()
     def checkpoint(self):
         coverage={name:{'state':'pending' if name in self.enabled else 'not selected','phase':PHASES.get(name,'Other')} for name in SCANNABLE}
@@ -86,6 +89,7 @@ class Engine:
             self.checkpoint();self.last_finding_save=time.monotonic()
     def run(self,tool,args,stdin=None,timeout=None):
         if self.cancel.is_set() or tool not in self.enabled or tool in self.skipped_tools: return None
+        args,stdin=prepare_inputs(tool,args,stdin)
         self.counter+=1
         stage={'name':tool,'status':'running','detail':'', 'started':now(),'execution_kind':'tool','process_started':False}
         self.job['stages'].append(stage); self.checkpoint()
@@ -136,7 +140,7 @@ class Engine:
                         stop_process(self.runtime,proc,pidfile); stage.update(status='failed',detail='Log exceeded 50 MB storage limit'); break
                 proc.wait(timeout=15)
             if stage['status']=='running':
-                stage.update(status='done' if proc.returncode==0 else 'failed',detail=f'Exit code {proc.returncode}')
+                stage.update(status='done' if proc.returncode==0 or (tool=='dalfox' and self._dalfox_profile=='v3' and proc.returncode==1) else 'failed',detail=f'Exit code {proc.returncode}')
             stage['log']=logfile.name
         except Exception as exc:
             if proc is not None: stop_process(self.runtime,proc,pidfile)
@@ -209,12 +213,13 @@ class Engine:
         scanned=set()
         def dalfox(url):
             output=self.directory/f'dalfox-{len(scanned)}.json'
-            self.run('dalfox',['url',url,'--format','json','--silence','--worker','1','--delay','350','--skip-mining-all','--output',self.rp(output)])
+            if self._dalfox_profile is None:self._dalfox_profile=dalfox_profile(help_text(self.runtime,'dalfox'))
+            self.run('dalfox',dalfox_arguments(self._dalfox_profile,url,self.rp(output)))
             scanned.add(url)
             for r in records(output):
                 if not isinstance(r,dict): continue
                 # Dalfox v2 emits individual PoCs; newer builds may wrap them.
-                items=r.get('pocs',[r])
+                items=r.get('pocs',r.get('findings',[r]))
                 for item in items if isinstance(items,list) else []:
                     if isinstance(item,dict) and (item.get('poc') or item.get('payload')):
                         self.finding('dalfox','Potential cross site scripting',url,json.dumps(item,ensure_ascii=False),'unverified')

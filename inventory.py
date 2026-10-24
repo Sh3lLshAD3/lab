@@ -26,6 +26,9 @@ def probe(runtime,name):
             kill_tree(proc);proc.communicate();result.update(version='Unknown',detail='Verification timed out');return result
         text=ANSI.sub('',output.decode('utf-8',errors='replace'))[:8000]
         valid=proc.returncode==0
+        if name=='dalfox' and not valid:
+            version=subprocess.run(runtime.wrap(command+['--version']),capture_output=True,text=True,timeout=12)
+            if version.returncode==0 and 'dalfox' in (version.stdout+version.stderr).lower():valid=True;text=version.stdout+version.stderr
         # waybackurls uses Go's flag help exit code 2 for -h.
         if name=='waybackurls':valid=proc.returncode in (0,2) and 'Usage' in text
         if name=='httpx':

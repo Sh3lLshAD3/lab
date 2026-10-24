@@ -1,3 +1,14 @@
+## 4.0.1 — Developer signature
+
+Added Developed by Nowan to the dashboard/setup footer, HTML and Word reports and report preview. Word author metadata is Nowan. Debian maintainer display name updated.
+
+## 4.0.0 — GitHub APT releases and target-aware commands
+
+- Added Debian package build, private per-user runtime synchronization, signed flat APT repository generation, fingerprint-verified one-time repository enrollment and GitHub Pages publishing workflow for Sh3lLshAD3/lab. Every successful main/master push publishes a monotonically numbered package build after tests. GitHub Pages and signing secrets still require repository-owner setup.
+- Central tool target normalization sends only hostnames/IPs to domain tools while preserving scheme, port, path and query for URL tools. No www removal or scope expansion.
+- Read-only command doctor checks installed executables and required flags without target scans. Dalfox v2/v3 syntax is chosen from local help; v3 finding exit status is handled correctly. Other scanner commands reviewed against official help/source.
+- Existing no-total-time-limit, live console, reports and scan deletion remain. APT upgrades app code, not independently managed scanners.
+
 ## 3.5.1 — No total execution deadline for scan tools
 
 All 17 scan tools now run without lab-imposed wall-clock limits. Removed ffuf and Nikto internal maxtime flags and the JavaScript download total-time budget. Per-request socket timeouts, verification/setup limits, input limits and Stop/Skip remain. Because all scanner invocations use timeout=None, the former conditional 50 MB log cutoff no longer applies to them. Long scans can retain large logs until deleted by the user. Existing processes are not modified.

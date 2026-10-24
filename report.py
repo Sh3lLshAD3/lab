@@ -78,4 +78,8 @@ def export(job, path):
         for key in ['kind','severity','url','method','parameter','observed_at','recommendation']:
             if f.get(key):d.add_paragraph(safe(key.capitalize()+': '+redact(f[key]))).paragraph_format.keep_with_next=True
         d.add_paragraph(safe('Evidence: '+public_evidence(f)))
+    footer=sec.footer.paragraphs[0]
+    footer.alignment=1
+    run=footer.add_run('Developed by Nowan');run.font.size=Pt(9);run.font.color.rgb=RGBColor(90,100,115)
+    d.core_properties.author='Nowan'
     d.save(path)

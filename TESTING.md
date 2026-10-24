@@ -71,3 +71,6 @@ Upstream tools are installed from current modules/branches. CLI flags and schema
 
 ## 3.5.1 scan deadlines
 68 unit tests pass, including AST verification that every pipeline tool invocation has no overall deadline and ffuf/Nikto have no maxtime flag. Existing real local subprocess completion, Stop/Skip and live progress tests continue to pass. UI DOM checks pass. No live external scan was performed.
+
+## 4.0.0 APT and tool inputs
+73 unit tests and the UI DOM harness pass. New tests cover hostname versus URL routing, www and port/path/query preservation, IPv6 Nmap targets, Dalfox v2/v3 arguments and exit codes, Debian payload contents and per-user code upgrades preserving scan/settings data. Workflow YAML parses; enrollment Bash syntax checks. A local signed flat repository was verified using gpgv and isolated apt lists: apt update selected package 4.0.0+git1 then 4.0.0+git2. No system package was installed/upgraded. The local environment prohibits GPG agent sockets, so the integration test used Sequoia sq for ephemeral signing; production GPG signing commands and GitHub Pages deployment were not executed here. No private signing key or test scan evidence is included in the deliverable. Actual upstream tool installations/scan results remain unverified.

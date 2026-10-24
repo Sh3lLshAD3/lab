@@ -11,3 +11,5 @@
 .button.danger{color:#b42318;border-color:#f0b4ad}.button.danger:hover{background:#fff0ed}
 
 #scan-log{height:360px;max-height:70vh;overflow:auto;white-space:pre;overflow-anchor:none;font:12px/1.6 ui-monospace,monospace;tab-size:4}#live-command{max-height:100px;overflow:auto;white-space:pre-wrap}#tool-live-stats{padding:10px 0;color:#46546a}
+
+.developer-signature{text-align:center;color:#64748b;padding:28px 16px;font-size:13px;letter-spacing:.02em}
