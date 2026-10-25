@@ -23,9 +23,10 @@ async function download(job,format='docx'){try{const r=await fetch('/api/report/
 function render(){
  const scans=jobs.filter(j=>j.kind==='scan');if(!selected&&scans.length)selected=scans[0].id;
  $('history').replaceChildren();for(const j of scans){let host;try{host=new URL(j.target).host;}catch{host=j.target;}const b=button('',()=>{selected=j.id;logSelection=null;refresh();},j.id===selected?'active':'');b.append(node('b',host),node('small',j.status+' · '+new Date(j.created).toLocaleString()));$('history').append(b);}
- const job=scans.find(j=>j.id===selected);if(!job){selected=null;lastRendered='';logSelection=null;$('job-title').textContent='Ready when you are';for(const id of ['job-actions','job-summary','pipeline-status','coverage'])$(id).replaceChildren();$('scan-monitor').hidden=true;$('technical').hidden=true;$('findings').replaceChildren(node('p','No saved scans. Start a new assessment.'));return;}
+ const job=scans.find(j=>j.id===selected);if(!job){selected=null;lastRendered='';logSelection=null;$('job-title').textContent='Ready when you are';for(const id of ['job-actions','job-summary','pipeline-status','coverage'])$(id).replaceChildren();$('discovery-results').replaceChildren();$('discovery-results').hidden=true;$('scan-monitor').hidden=true;$('technical').hidden=true;$('findings').replaceChildren(node('p','No saved scans. Start a new assessment.'));return;}
  renderMonitor(job);
  const signature=job.id+':'+job.revision+':'+$('result-filter').value;if(signature===lastRendered){return;}lastRendered=signature;
+ renderDiscovery(job);
  $('job-title').textContent=job.target;$('job-actions').replaceChildren();
  if(active(job))$('job-actions').append(button('Stop',()=>stop(job)));
  else $('job-actions').append(button('Read report',()=>previewReport(job)),button('↓ Word',()=>download(job),'button primary'),button('HTML',()=>download(job,'html')),button('Delete scan',()=>deleteScan(job),'button outline danger'));
@@ -43,6 +44,24 @@ function render(){
  $('technical').hidden=false;$('coverage').replaceChildren();for(const s of job.stages||[]){const row=node('div',undefined,'stage');row.append(node('span',s.name+' · '+s.status+' · '+(s.detail||'')));if(s.log)row.append(button('Log',()=>{$('follow-tool').checked=false;logSelection={id:job.id,name:s.log};loadLog();},''));$('coverage').append(row);}
 }
 let logBuffer={key:'',start:0,end:0,text:''},logBusy=false;
+// Sanitize the assembled buffer, so ANSI sequences split across HTTP chunks work too.
+function terminalText(text){
+ return String(text).replace(/\x1b\][\s\S]*?(?:\x07|\x1b\\)/g,'')
+ .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g,'')
+ .replace(/\x1b[^\x1b]*$/g,'')
+ .replace(/\r\n/g,'\n').replace(/\r/g,'\n')
+ .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g,'');
+}
+function renderDiscovery(job){
+ const panel=$('discovery-results');const opened=new Set([...panel.querySelectorAll('details[open]')].map(d=>d.dataset.tool));panel.replaceChildren();
+ for(const [tool,result] of Object.entries(job.discovery_results||{})){
+  const card=node('article',undefined,'finding');
+  card.append(node('h3',tool+' · '+result.count+' '+result.type),node('p',(result.state||'unknown')+' · Discovery evidence; not a vulnerability. '+result.in_scope+' in scope · '+(result.count-result.in_scope)+' outside scope.'));
+  const details=node('details');details.dataset.tool=tool;details.open=opened.has(tool);details.append(node('summary','View discovered results'+(result.count>result.values.length?' (first '+result.values.length+')':'')),node('pre',result.values.join('\n')||'No results returned.'));
+  card.append(details);panel.append(card);
+ }
+ panel.hidden=!panel.childElementCount;
+}
 async function loadLog(older=false){
  const selection=logSelection;if(!selection||logBusy)return;logBusy=true;
  try{
@@ -56,7 +75,7 @@ async function loadLog(older=false){
   else if(older){logBuffer.text=v.text+logBuffer.text;logBuffer.start=v.offset;}
   else{logBuffer.text+=v.text;logBuffer.end=v.next_offset;}
   // Bound browser memory while preserving access to older data via paging.
-  console.hidden=false;if(console.textContent!==logBuffer.text)console.textContent=logBuffer.text||'Waiting for tool output…';
+  const display=terminalText(logBuffer.text);console.hidden=false;if(console.textContent!==display)console.textContent=display||'Waiting for tool output…';
   $('live-log-title').textContent='Live output · '+selection.name;
   if(older)console.scrollTop=top+console.scrollHeight-height;else if($('follow-log').checked)console.scrollTop=console.scrollHeight;else console.scrollTop=top;
   $('older-log').disabled=!logBuffer.start;

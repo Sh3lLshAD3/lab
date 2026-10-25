@@ -1,4 +1,4 @@
-# Pentest Lab Unified 4.0.1
+# Pentest Lab Unified 4.0.2
 
 **Developed by Nowan**
 
@@ -157,7 +157,7 @@ cat /etc/apt/sources.list.d/pentest-lab.list
 Source ZIP-এর `release/` folder-এ built package থাকলে project folder থেকে:
 
 ```bash
-sudo apt install ./release/pentest-lab_4.0.1_all.deb
+sudo apt install ./release/pentest-lab_4.0.2_all.deb
 pentest-lab
 ```
 
@@ -264,3 +264,7 @@ cd ~/lab-dev
 - [COMMAND_REVIEW.md](COMMAND_REVIEW.md): command ও target review।
 
 Windows/WSL real installations, production GitHub Pages publishing এবং live external assessment সব build environment-এ যাচাই করা হয়নি। শুধু tool command update করলে vulnerability পাওয়ার নিশ্চয়তা হয় না।
+
+### 4.0.2 display updates
+
+Live output removes ANSI color/control sequences and wraps long lines inside the console. Carriage-return progress updates appear on separate lines; raw log files stay unchanged. Discovery cards show per-tool URL/host counts and up to 500 results, independently of vulnerability counts. Full parsed lists are retained in each scan folder as `discovered-TOOL.txt`. Existing scans without discovery metadata retain their original view.

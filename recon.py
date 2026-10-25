@@ -32,24 +32,28 @@ def passive(worker,host,read_records,read_lines):
         return set(),set()
     urls=set();hosts=set()
     log=worker.run('waybackurls',[],host+'\n',timeout=None)
-    if log:urls.update(worker.scope.filter(read_lines(log)))
+    if log:
+        found=read_lines(log);worker.discovery('waybackurls',found)
+        urls.update(worker.scope.filter(found))
     log=worker.run('subfinder',['-d',host,'-silent'],timeout=None)
     if log:
         for line in read_lines(log):
             name=normalized_host(line.strip())
             if name and re.fullmatch(r'[A-Za-z0-9.-]+',line.strip()):hosts.add(name)
+    if log:worker.discovery('subfinder',hosts,'hosts')
     if 'theHarvester' in worker.enabled:
         output=worker.directory/'harvester'
         sources=','.join(worker.job.get('options',{}).get('harvester_sources',['crtsh','otx']))
         log=worker.run('theHarvester',['-d',host,'-b',sources,'-l','100','-f',worker.rp(output)],timeout=None)
-        evidence=[]
+        evidence=[];harvest_hosts=[]
         for path in (output.with_suffix('.json'),output.with_suffix('.jsonl')):
             for obj in read_records(path):
                 for value in strings(obj):
                     if value.startswith(('http://','https://')):urls.add(value)
                     candidate=normalized_host(value)
-                    if candidate and (candidate==host or candidate.endswith('.'+host)):hosts.add(candidate)
+                    if candidate and (candidate==host or candidate.endswith('.'+host)):hosts.add(candidate);harvest_hosts.append(candidate)
                 evidence.append(json.dumps(obj,ensure_ascii=True))
+        if log:worker.discovery('theHarvester',harvest_hosts,'hosts')
         if not evidence and log:
             text=ANSI.sub('', '\n'.join(read_lines(log)))
             # Older versions may export different schemas; keep bounded raw evidence.
@@ -132,11 +136,14 @@ def crawl(worker,live,roots,read_lines):
         if 'katana' in worker.enabled:
             output=worker.directory/f'katana-{index}.txt'
             worker.run('katana',['-u',root,'-d',depth,'-fs','fqdn','-dr','-rl','3','-c','1','-duc','-silent','-o',worker.rp(output)],timeout=None)
-            extra.extend(read_lines(output))
+            found=read_lines(output);extra.extend(found)
+            worker.discovery('katana',found)
         if 'photon' in worker.enabled:
             output=worker.directory/f'photon-{index}'
             worker.run('photon',['-u',root,'-l',depth,'-t','1','-d','0.5','--timeout','10','--only-urls','-o',worker.rp(output)],timeout=None)
+            found=[]
             if output.is_dir():
                 for file in output.rglob('*.txt'):
-                    if file.stat().st_size<5_000_000:extra.extend(read_lines(file))
+                    if file.stat().st_size<5_000_000:found.extend(read_lines(file))
+            extra.extend(found);worker.discovery('photon',found)
     return [u for u in worker.scope.filter(extra) if u not in set(live)][:worker.job['limits']['urls']]

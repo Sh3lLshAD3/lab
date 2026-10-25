@@ -46,6 +46,11 @@ class ReconV3Tests(unittest.TestCase):
                 if tool=='nikto':output(args,'-output',{'vulnerabilities':[]})
                 return log
             worker.run=run;worker.execute()
+            self.assertEqual(job['discovery_results']['waybackurls']['count'],2)
+            self.assertEqual(job['discovery_results']['waybackurls']['in_scope'],1)
+            self.assertIn('unauthorized.lab.example',job['discovery_results']['subfinder']['values'])
+            self.assertIn('photon',job['discovery_results'])
+            self.assertTrue((worker.directory/'discovered-waybackurls.txt').is_file())
             nuclei_args=next(args for name,args in calls if name=='nuclei')
             self.assertIn('-sj',nuclei_args);self.assertIn('-stats',nuclei_args)
             self.assertEqual(nuclei_args[nuclei_args.index('-rl')+1],'10')

@@ -13,3 +13,10 @@
 #scan-log{height:360px;max-height:70vh;overflow:auto;white-space:pre;overflow-anchor:none;font:12px/1.6 ui-monospace,monospace;tab-size:4}#live-command{max-height:100px;overflow:auto;white-space:pre-wrap}#tool-live-stats{padding:10px 0;color:#46546a}
 
 .developer-signature{text-align:center;color:#64748b;padding:28px 16px;font-size:13px;letter-spacing:.02em}
+
+/* Grid items must shrink below the intrinsic width of terminal output. */
+.workspace{grid-template-columns:230px minmax(0,1fr)}.results,.scan-monitor,.finding{min-width:0;max-width:100%}
+#scan-log{width:100%;max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
+#live-command,.finding pre{max-width:100%;overflow-wrap:anywhere;word-break:break-word}
+.scan-monitor .inventory-heading{flex-wrap:wrap}.finding-head{flex-wrap:wrap}
+@media(max-width:900px){.workspace{grid-template-columns:170px minmax(0,1fr)}}

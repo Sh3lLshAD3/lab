@@ -87,6 +87,30 @@ class Engine:
         self.job['findings'].append(item)
         if time.monotonic()-self.last_finding_save>.25:
             self.checkpoint();self.last_finding_save=time.monotonic()
+    def discovery(self,tool,values,type='URLs'):
+        """Keep discovery evidence separate from vulnerability totals; never expand scope."""
+        clean=set()
+        for value in values:
+            if not isinstance(value,str):continue
+            value=value.strip()
+            if type=='hosts':
+                value=recon.normalized_host(value)
+                if value:clean.add(value)
+            else:
+                try:clean.add(normalize(value))
+                except (ValueError,UnicodeError):continue
+        items=sorted(clean)
+        self.job.setdefault('discovery_results',{})
+        # Accumulate repeated invocations (e.g. crawlers on several roots).
+        prior=getattr(self,'_discovery_values',None)
+        if prior is None:self._discovery_values={};prior=self._discovery_values
+        prior.setdefault(tool,set()).update(items);items=sorted(prior[tool])
+        in_scope=sum(v in self.scope.hosts if type=='hosts' else self.scope.allows(v) for v in items)
+        state=next((s['status'] for s in reversed(self.job.get('stages',[])) if s['name']==tool),'unknown')
+        self.job['discovery_results'][tool]={'state':state,'type':type,'count':len(items),'in_scope':in_scope,'values':items[:500]}
+        self.file('discovered-'+tool+'.txt',items)
+        self.checkpoint()
+
     def run(self,tool,args,stdin=None,timeout=None):
         if self.cancel.is_set() or tool not in self.enabled or tool in self.skipped_tools: return None
         args,stdin=prepare_inputs(tool,args,stdin)
@@ -189,6 +213,7 @@ class Engine:
         probe=self.directory/'httpx.jsonl'
         self.run('httpx',['-l',self.rp(candidates),'-json','-silent','-rl','3','-t','2','-timeout','10','-o',self.rp(probe)])
         # No redirect-follow flags: each submitted URL must pass the host scope check.
+        self.discovery('httpx',[r.get('url','') for r in records(probe) if isinstance(r,dict) and r.get('status_code',0)])
         live=self.scope.filter([r.get('url','') for r in records(probe) if isinstance(r,dict) and r.get('status_code',0)])
         if not live:
             self.job['stages'].append({'name':'routing','status':'skipped','detail':'No live URLs from httpx; active stages were not run.'}); self.checkpoint(); return
@@ -197,6 +222,7 @@ class Engine:
         if extra and not self.cancel.is_set():
             candidates=self.file('crawler-probe.txt',extra);output=self.directory/'crawler-httpx.jsonl'
             self.run('httpx',['-l',self.rp(candidates),'-json','-silent','-rl','3','-t','2','-timeout','10','-o',self.rp(output)])
+            self.discovery('httpx',[r.get('url','') for r in records(output) if isinstance(r,dict) and r.get('status_code',0)])
             live=self.scope.filter(live+[r.get('url','') for r in records(output) if isinstance(r,dict) and r.get('status_code',0)])
         javascript_scan.scan(self,list(urls)+list(extra)+list(live),lines,now)
         if self.cancel.is_set():return
